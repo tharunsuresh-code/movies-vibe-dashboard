@@ -8,6 +8,8 @@
 // ─── 🔧 SET YOUR VPS API URL HERE ─────────────────────────
 // Deploy this to Vercel/Netlify. Change API_BASE to your VPS.
 const API_BASE = '__VITE_API_BASE__'; // replaced at build time by Vercel env
+const API_KEY  = '__VITE_API_KEY__';  // replaced at build time by Vercel env
+const API_HEADERS = API_KEY ? { 'X-API-Key': API_KEY } : {};
 // For VPS backend, set: const API_BASE = "https://your-vps-ip:8080";
 // ───────────────────────────────────────────────────────────
 </script>
@@ -152,7 +154,7 @@ function freqDot(f) {
 async function showLeaderboard() {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
   try {
-    const r = await fetch(`${API_BASE}/api/leaderboard`);
+    const r = await fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS });
     const films = await r.json();
     renderLeaderboard(films);
   } catch(e) {
@@ -195,7 +197,7 @@ function renderLeaderboard(films) {
 async function showFilm(film) {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading analysis...</div></div>';
   try {
-    const r = await fetch(`${API_BASE}/api/film/${encodeURIComponent(film)}`);
+    const r = await fetch(`${API_BASE}/api/film/${encodeURIComponent(film)}`, { headers: API_HEADERS });
     const data = await r.json();
     renderFilm(film, data);
   } catch(e) {
