@@ -316,13 +316,18 @@ function renderFilm(film, data) {
       <div class="spoiler-banner mild">🟡 Mild spoilers — structure/context, no major plot points</div>
       ${t1.performance_highlights ? `<div class="card"><div class="card-title">🎭 Performance Highlights</div><p class="summary-text">${esc(t1.performance_highlights)}</p></div>` : ''}
       ${t1.technical_highlights ? `<div class="card"><div class="card-title">🎬 Technical Highlights</div><p class="summary-text">${esc(t1.technical_highlights)}</p></div>` : ''}
-      ${lovedHtml || critHtml ? `<div class="card"><div class="card-title">⭐ Audience Reactions</div><ul style="list-style:none">${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;border-bottom:1px solid var(--border)">✅ ${esc(l)}</li>`).join('')}${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;border-bottom:1px solid var(--border)">❌ ${esc(c)}</li>`).join('')}</ul></div>` : ''}
+      ${!t1.performance_highlights && t1.first_half_vibe ? `<div class="card"><div class="card-title">🎭 Performance View</div><p class="summary-text">${esc(t1.first_half_vibe)}</p></div>` : ''}
+      ${!t1.technical_highlights && t1.second_half_vibe ? `<div class="card"><div class="card-title">🎬 Technical View</div><p class="summary-text">${esc(t1.second_half_vibe)}</p></div>` : ''}
+      ${!t1.performance_highlights && t1.character_context ? `<div class="card"><div class="card-title">🧩 Story Structure</div><p class="summary-text">${esc(t1.character_context)}</p></div>` : ''}
+      ${!t1.technical_highlights && t1.story_vibes ? `<div class="card"><div class="card-title">📖 Narrative Style</div><p class="summary-text">${esc(t1.story_vibes)}</p></div>` : ''}
     </div>
 
     <!-- TAB 2 -->
     <div id="tab-full" class="tab-content">
       <div class="spoiler-banner full">🔴 Full spoilers — audience reactions revealing plot context</div>
       ${(t2.audience_reaction_highlights || []).length ? `<div class="card"><div class="card-title">💬 Audience Reaction Highlights</div><ul style="list-style:none">${t2.audience_reaction_highlights.map(s => `<li style="padding:8px 0;border-bottom:1px solid var(--border)">💬 ${esc(s)}</li>`).join('')}</ul></div>` : ''}
+      ${!t2.audience_reaction_highlights && t2.story_breakdown ? `<div class="card"><div class="card-title">📖 Story Context</div><p class="summary-text">${esc(t2.story_breakdown)}</p></div>` : ''}
+      ${!t2.audience_reaction_highlights && t2.key_scenes ? `<div class="card"><div class="card-title">🎬 Key Scenes Discussion</div><ul style="list-style:none">${(Array.isArray(t2.key_scenes) ? t2.key_scenes : [t2.key_scenes]).map(s => `<li style="padding:6px 0;border-bottom:1px solid var(--border)">🔑 ${esc(s)}</li>`).join('')}</ul></div>` : ''}
       ${t2.climax_analysis ? `<div class="card"><div class="card-title">🔥 Climax Analysis</div><p class="summary-text">${esc(t2.climax_analysis)}</p></div>` : ''}
       ${t2.technical_breakdown ? `<div class="card"><div class="card-title">⚙️ Technical</div><p class="summary-text">${esc(t2.technical_breakdown)}</p></div>` : ''}
       ${a.audience_engagement?.theatre_response ? `<div class="card"><div class="card-title">🏟️ Theatre Response</div><p class="summary-text">${esc(a.audience_engagement.theatre_response)}</p></div>` : ''}
