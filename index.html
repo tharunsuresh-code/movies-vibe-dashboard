@@ -7,7 +7,7 @@
 <script>
 // ─── 🔧 SET YOUR VPS API URL HERE ─────────────────────────
 // Deploy this to Vercel/Netlify. Change API_BASE to your VPS.
-const API_BASE = window.location.origin;
+const API_BASE = '__VITE_API_BASE__'; // replaced at build time by Vercel env
 // For VPS backend, set: const API_BASE = "https://your-vps-ip:8080";
 // ───────────────────────────────────────────────────────────
 </script>

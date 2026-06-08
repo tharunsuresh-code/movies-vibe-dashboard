@@ -4,7 +4,7 @@
   "description": "Tamil movie review dashboard — social media sentiment analysis from YouTube",
   "scripts": {
     "dev": "npx serve .",
-    "build": "cp index.html 404.html"
+    "build": "node -e \"const f=require('fs');let h=f.readFileSync('index.html','utf8');h=h.replaceAll('__VITE_API_BASE__',process.env.VITE_API_BASE||'http://84.247.164.29:8080');f.writeFileSync('index.html',h);f.writeFileSync('404.html',h);\""
   },
   "license": "MIT"
 }
