@@ -1,0 +1,10 @@
+{
+  "name": "movies-vibe-dashboard",
+  "version": "1.0.0",
+  "description": "Tamil movie review dashboard — social media sentiment analysis from YouTube",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "cp index.html 404.html"
+  },
+  "license": "MIT"
+}
