@@ -154,15 +154,17 @@ function freqDot(f) {
 async function showLeaderboard() {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
   try {
-    const r = await fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS });
-    const films = await r.json();
-    renderLeaderboard(films);
+    const [lb, nr] = await Promise.all([
+      fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS }).then(r => r.json()),
+      fetch(`${API_BASE}/api/new-releases`, { headers: API_HEADERS }).then(r => r.json()),
+    ]);
+    renderLeaderboard(lb, nr);
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error-msg">⚠️ Could not reach backend. Is the VPS running?</div>`;
   }
 }
 
-function renderLeaderboard(films) {
+function renderLeaderboard(films, newReleases) {
   if (!films || films.length === 0) {
     document.getElementById('app').innerHTML = '<div class="error-msg">No films tracked yet.</div>';
     return;
@@ -171,25 +173,50 @@ function renderLeaderboard(films) {
     <div class="header">
       <h1>🎬 Kollywood Pulse</h1>
       <div class="sub">Social review dashboard — Top films by public discussion</div>
-    </div>
-    <div class="card" style="padding:8px">`;
+    </div>`;
+
+  // ─── Main Leaderboard ───
+  html += `<div class="card" style="padding:8px"><div class="card-title" style="padding:12px 16px 0">🔥 Leaderboard</div>`;
   films.forEach((f, i) => {
     const rc = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
     const buzz = f.buzz || '';
-    const bHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}"><span style="filter:grayscale(1)">🔥</span> ${esc(buzz)}</span>` : '';
+    const bHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">🔥 ${esc(buzz)}</span>` : '';
     const rHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
     const gHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join('');
+    const dHtml = f.release_date ? `<span class="lb-tag">📅 ${f.release_date}</span>` : '';
     html += `<div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
       <div class="lb-rank ${rc}">${i + 1}</div>
       <div class="lb-info">
         <div class="lb-name">${esc(f.film)}</div>
-        <div class="lb-meta">${rHtml} ${bHtml} ${gHtml} <span>💬 ${f.total_comments || 0}</span></div>
+        <div class="lb-meta">${rHtml} ${bHtml} ${gHtml} ${dHtml} <span>💬 ${f.total_comments || 0}</span></div>
       </div>
       <div class="lb-score">${f.popularity_score || 0}</div>
     </div>`;
   });
-  html += `</div>
-    <div class="footer">Data refreshes every 6 h · <a href="https://github.com" style="color:var(--cyan)">GitHub</a></div>`;
+  html += `</div>`;
+
+  // ─── New Releases ───
+  if (newReleases && newReleases.length > 0) {
+    html += `<div class="card" style="padding:8px;margin-top:12px"><div class="card-title" style="padding:12px 16px 0">🆕 New Releases</div>`;
+    newReleases.forEach((f, i) => {
+      const rHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
+      const buzz = f.buzz || '';
+      const bHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">🔥 ${esc(buzz)}</span>` : '';
+      const sHtml = f.star ? `<span class="lb-tag">🎭 ${esc(f.star)}</span>` : '';
+      const dHtml = f.release_date ? `<span class="lb-tag">📅 ${f.release_date}</span>` : '';
+      html += `<div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
+        <div class="lb-rank" style="color:var(--cyan);font-size:0.9rem">🆕</div>
+        <div class="lb-info">
+          <div class="lb-name">${esc(f.film)}</div>
+          <div class="lb-meta">${sHtml} ${dHtml} ${rHtml} ${bHtml} <span>💬 ${f.total_comments || 0}</span></div>
+        </div>
+        <div class="lb-score" style="font-size:0.85rem;color:var(--text-dim)">${f.popularity_score || '—'}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="footer">Data refreshes every 6 h · <a href="https://github.com/tharunsuresh-code/movies-vibe-dashboard" style="color:var(--cyan)">GitHub</a></div>`;
   document.getElementById('app').innerHTML = html;
 }
 
