@@ -204,7 +204,7 @@ function renderLeaderboard(films, newReleases) {
         <div class="lb-name">${esc(f.film)}</div>
         <div class="lb-meta">${rHtml} ${bHtml} ${gHtml} ${dHtml} <span>💬 ${f.total_comments || 0}</span></div>
       </div>
-      <div class="lb-score">${f.popularity_score || 0}</div>
+      <div class="lb-score">${f.hotness_score || 0}</div>
     </div>`;
   });
   html += `</div>`;
