@@ -100,6 +100,11 @@ const API_HEADERS = API_KEY ? { 'X-API-Key': API_KEY } : {};
   .genres span { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.25); color: var(--cyan); padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; }
 
   .buzz-badge { display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 0.78rem; font-weight: 600; }
+  .buzz-muted { background: rgba(139,148,158,0.08); color: var(--text-dim); border: 1px solid var(--border); font-style: italic; }
+  .buzz-celebratory { background: rgba(240,136,62,0.2); color: var(--accent); border: 1px solid var(--accent); }
+  .buzz-excited { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid var(--purple); }
+  .buzz-mixed { background: rgba(210,153,34,0.1); color: var(--yellow); border: 1px solid var(--yellow); }
+  .buzz-disappointed { background: rgba(248,81,73,0.1); color: var(--red); border: 1px solid var(--red); }
   .buzz-explosive { background: rgba(240,136,62,0.2); color: var(--accent); border: 1px solid var(--accent); }
   .buzz-very-high { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid var(--purple); }
   .buzz-high { background: rgba(88,166,255,0.12); color: var(--cyan); border: 1px solid var(--cyan); }
@@ -154,7 +159,7 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, functi
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
 
 function buzzClass(level) {
-  const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low'};
+  const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low','muted':'muted','celebratory':'celebratory','excited':'excited','mixed':'mixed','disappointed':'disappointed'};
   return 'buzz-' + (map[String(level).toLowerCase()] || 'medium');
 }
 
@@ -291,6 +296,8 @@ function renderFilm(film, data) {
         ${t0.audience_mood ? `<div style="margin-top:8px">Mood: <span class="buzz-badge ${buzzClass(t0.audience_mood)}">${esc(t0.audience_mood)}</span></div>` : ''}
         ${t0.who_should_watch ? `<p style="margin-top:8px;font-size:0.85rem;color:var(--text-dim)">🎯 ${esc(t0.who_should_watch)}</p>` : ''}
       </div>
+      ${t0.performance_highlights ? `<div class="card"><div class="card-title">🎭 Performance Highlights</div><p class="summary-text">${esc(t0.performance_highlights)}</p></div>` : ''}
+      ${t0.technical_highlights ? `<div class="card"><div class="card-title">🎬 Technical Highlights</div><p class="summary-text">${esc(t0.technical_highlights)}</p></div>` : ''}
       <div class="card">
         <div class="card-title">📊 Sentiment</div>
         <div class="sentiment-bar">
@@ -314,12 +321,11 @@ function renderFilm(film, data) {
     <!-- TAB 1 -->
     <div id="tab-mild" class="tab-content">
       <div class="spoiler-banner mild">🟡 Mild spoilers — structure/context, no major plot points</div>
-      ${t1.performance_highlights ? `<div class="card"><div class="card-title">🎭 Performance Highlights</div><p class="summary-text">${esc(t1.performance_highlights)}</p></div>` : ''}
-      ${t1.technical_highlights ? `<div class="card"><div class="card-title">🎬 Technical Highlights</div><p class="summary-text">${esc(t1.technical_highlights)}</p></div>` : ''}
-      ${!t1.performance_highlights && t1.first_half_vibe ? `<div class="card"><div class="card-title">🎭 Performance View</div><p class="summary-text">${esc(t1.first_half_vibe)}</p></div>` : ''}
-      ${!t1.technical_highlights && t1.second_half_vibe ? `<div class="card"><div class="card-title">🎬 Technical View</div><p class="summary-text">${esc(t1.second_half_vibe)}</p></div>` : ''}
-      ${!t1.performance_highlights && t1.character_context ? `<div class="card"><div class="card-title">🧩 Story Structure</div><p class="summary-text">${esc(t1.character_context)}</p></div>` : ''}
-      ${!t1.technical_highlights && t1.story_vibes ? `<div class="card"><div class="card-title">📖 Narrative Style</div><p class="summary-text">${esc(t1.story_vibes)}</p></div>` : ''}
+      ${t1.first_half_vibe ? `<div class="card"><div class="card-title">🎬 First Half</div><p class="summary-text">${esc(t1.first_half_vibe)}</p></div>` : ''}
+      ${t1.second_half_vibe ? `<div class="card"><div class="card-title">🎬 Second Half</div><p class="summary-text">${esc(t1.second_half_vibe)}</p></div>` : ''}
+      ${t1.uniqueness ? `<div class="card"><div class="card-title">✨ What Makes It Unique</div><p class="summary-text">${esc(t1.uniqueness)}</p></div>` : ''}
+      ${t1.why_watch ? `<div class="card"><div class="card-title">🎯 Why Watch</div><p class="summary-text">${esc(t1.why_watch)}</p></div>` : ''}
+      ${!t1.first_half_vibe && t1.character_context ? `<div class="card"><div class="card-title">🧩 Story Structure</div><p class="summary-text">${esc(t1.character_context)}</p></div>` : ''}
     </div>
 
     <!-- TAB 2 -->
