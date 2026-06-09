@@ -41,6 +41,9 @@
   }
   .lb-row:hover { background: var(--surface2); }
   .lb-row:last-child { border: none; }
+  .lb-header { display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 52px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .lb-header-label { font-size: 0.72rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+  .lb-header-label:last-child { flex: 0 0 auto; min-width: 50px; }
   .lb-rank { font-size: 1.2rem; font-weight: 800; color: var(--text-dim); min-width: 32px; text-align: center; }
   .lb-rank.top1 { color: var(--accent); } .lb-rank.top2 { color: var(--cyan); } .lb-rank.top3 { color: var(--purple); }
   .lb-info { flex: 1; }
@@ -246,6 +249,7 @@ function renderDashboard(films, newReleases, ottFilms) {
   // ── SECTION 1: THEATRICAL LEADERBOARD ─────────────────────────
   html += `<div class="card" style="padding:8px">`;
   if (films && films.length > 0) {
+    html += `<div class="lb-header"><span class="lb-header-label">Rank</span><span></span><span class="lb-header-label" style="text-align:right">Score</span></div>`;
     films.forEach((f, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const buzz = f.buzz || '';
