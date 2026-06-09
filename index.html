@@ -175,8 +175,8 @@ const TUNNEL_URL = "https://besides-irrigation-dynamic-girls.trycloudflare.com";
 // On HTTPS pages (Vercel), use the tunnel URL immediately (synchronous)
 // On HTTP pages (VPS direct), API_BASE stays "" for same-origin calls
 let API_BASE = window.location.protocol === 'https:' ? TUNNEL_URL : "";
-const API_KEY  = "__VITE_API_KEY__";
-const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
+const API_KEY  = "dev-key-change-in-prod";
+const API_HEADERS = { "X-API-Key": API_KEY };
 
 // Auto-discover tunnel URL (non-blocking, updates API_BASE if found)
 (async function discoverTunnel() {
