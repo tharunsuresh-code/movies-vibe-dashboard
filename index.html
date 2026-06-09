@@ -184,17 +184,8 @@
 
 <script>
 // ─── Config ─────────────────────────────────────────────────────────
-let API_BASE = "http://84.247.164.29:8080";
+const API_BASE = "https://gage-voting-lets-generators.trycloudflare.com";
 
-async function resolveApiBase() {
-  try {
-    const r = await fetch("http://84.247.164.29:8080/api/tunnel-url");
-    const d = await r.json();
-    if (d.url) { API_BASE = d.url; }
-  } catch(e) { /* fallback */ }
-}
-
-// ─── Router ─────────────────────────────────────────────────────────
 function route() {
   const hash = window.location.hash || '#/';
   if (hash.startsWith('#/film/')) {
@@ -234,7 +225,6 @@ function switchSection(name) {
 
 // ─── Leaderboard ────────────────────────────────────────────────────
 async function showLeaderboard() {
-  await resolveApiBase();
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
   try {
     const [lbRes, ottRes] = await Promise.all([
@@ -343,7 +333,6 @@ function renderLeaderboard(films, ottFilms) {
 
 // ─── Film Detail ─────────────────────────────────────────────────────
 async function showFilm(film) {
-  await resolveApiBase();
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading analysis...</div></div>';
   try {
     const r = await fetch(`${API_BASE}/api/film/${encodeURIComponent(film)}`);
