@@ -167,9 +167,21 @@
 
 <script>
 // ─── Config ─────────────────────────────────────────────────────────
-const API_BASE = "https://annotated-princess-menus-reasons.trycloudflare.com";
+const VPS_IP = "http://84.247.164.29:8080";
+let API_BASE = "https://annotated-princess-menus-reasons.trycloudflare.com"; // fallback
 const API_KEY  = "__VITE_API_KEY__";
 const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
+
+// Auto-discover tunnel URL (non-blocking, uses fallback if fails)
+(async function discoverTunnel() {
+  try {
+    const r = await fetch(`${VPS_IP}/api/tunnel-url`, { signal: AbortSignal.timeout(5000) });
+    const data = await r.json();
+    if (data.url) API_BASE = data.url;
+  } catch(e) {
+    // mixed content or timeout — keep fallback
+  }
+})();
 
 function route() {
   const hash = window.location.hash || '#/';
