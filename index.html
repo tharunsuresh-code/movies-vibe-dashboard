@@ -393,8 +393,119 @@ function renderFilm(film, data) {
   const ottCritHtml = (ottAnalysis.what_people_criticized || []).map(c => `<li>${esc(c)}</li>`).join('');
   const ottRating = ottAnalysis.rating || null;
   const ottVibe = ottAnalysis.ott_vibe || {};
+  const ottTab0 = ottAnalysis.tab_zero_spoiler || {};
 
-  document.getElementById('app').innerHTML = `
+  if (hasOtt) {
+    // ─── OTT MODE: Single scrollable view, no spoiler tabs ─────────
+    document.getElementById('app').innerHTML = `
+    <button class="back" onclick="window.location.hash='#/'">← Back</button>
+
+    <div class="header" style="padding-top:8px;border:none">
+      <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">📺 ${esc(film)}</h1>
+      <div class="sub" style="margin-top:8px">
+        <span style="color:var(--ott);font-weight:600;margin-right:8px">OTT Release</span>
+        ${ottStatus.ott_platform ? `<span class="lb-tag" style="border-color:var(--ott);color:var(--ott)">📺 ${esc(ottStatus.ott_platform)}</span>` : ''}
+        ${ottStatus.ott_release_date ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">📅 ${ottStatus.ott_release_date}</span>` : ''}
+        <span style="color:var(--text-dim);margin-left:8px">💬 ${ottStatus.ott_comments || 0} OTT comments · ${videos.filter(v=>v.is_ott).length} OTT videos</span>
+      </div>
+    </div>
+
+    <!-- Theatrical vs OTT Comparison -->
+    <div class="ott-compare-card">
+      <div class="card-title">🎬 Theatrical vs 📺 OTT</div>
+      <div class="rating-compare">
+        <div class="rating-box theatre-box">
+          <div class="label">🎬 Theatrical</div>
+          <div class="value">${rating}</div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="rating-box ott-box">
+          <div class="label">📺 OTT</div>
+          <div class="value">${ottRating || '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OTT Mood -->
+    <div class="card">
+      <div class="card-title">📺 OTT Audience Mood</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        ${ottVibe.ott_mood ? `<span class="buzz-badge ${buzzClass(ottVibe.ott_mood)}">${esc(ottVibe.ott_mood)}</span>` : ''}
+        <span style="font-size:0.82rem;color:var(--text-dim)">From ${ottStatus.ott_comments || 0} OTT viewer comments</span>
+      </div>
+      ${ottVibe.how_it_differs ? `<div class="vibe-block" style="border-left-color:var(--ott)">${esc(ottVibe.how_it_differs)}</div>` : ''}
+      ${ottVibe.theatrical_vs_ott_verdict ? `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:10px"><strong>Verdict:</strong> ${esc(ottVibe.theatrical_vs_ott_verdict)}</p>` : ''}
+    </div>
+
+    <!-- OTT Sentiment -->
+    ${Object.keys(ottSb).length ? `
+    <div class="card">
+      <div class="card-title">📊 OTT Sentiment</div>
+      <div class="sentiment-bar">
+        <div class="seg pos" style="width:${ottSb.positive_percent || 0}%">${(ottSb.positive_percent || 0) > 8 ? (ottSb.positive_percent + '%') : ''}</div>
+        <div class="seg mix" style="width:${ottSb.mixed_percent || 0}%">${(ottSb.mixed_percent || 0) > 8 ? (ottSb.mixed_percent + '%') : ''}</div>
+        <div class="seg neg" style="width:${ottSb.negative_percent || 0}%">${(ottSb.negative_percent || 0) > 8 ? (ottSb.negative_percent + '%') : ''}</div>
+        <div class="seg neu" style="width:${ottSb.neutral_percent || 0}%"></div>
+      </div>
+      <div class="sentiment-labels">
+        <span class="pos">😊 ${ottSb.positive_percent || 0}%</span>
+        <span class="mix">🤔 ${ottSb.mixed_percent || 0}%</span>
+        <span class="neg">😠 ${ottSb.negative_percent || 0}%</span>
+        <span class="neu">😶 ${ottSb.neutral_percent || 0}%</span>
+      </div>
+    </div>` : ''}
+
+    <!-- OTT Rating -->
+    <div class="card">
+      <div class="card-title">⭐ OTT Rating</div>
+      <div class="rating-hero">
+        <div class="rating-num" style="color:var(--ott)">${ottRating || '—'}</div>
+        <div>
+          <div class="rating-stars" style="color:var(--ott)">${ottRating ? "★".repeat(Math.min(10, Math.floor(ottRating))) + "☆".repeat(Math.max(0, 10 - Math.floor(ottRating))) : ''}</div>
+          <div class="rating-label">From OTT YouTube comments</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OTT Themes -->
+    ${ottThemeHtml ? `
+    <div class="card">
+      <div class="card-title">🔍 OTT Key Themes</div>
+      <div class="theme-pills">${ottThemeHtml}</div>
+    </div>` : ''}
+
+    <!-- OTT Loved / Criticized -->
+    ${ottLovedHtml || ottCritHtml ? `
+    <div class="card">
+      <div class="card-title">❤️ OTT Audience Says</div>
+      <div class="two-col">
+        ${ottLovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${ottLovedHtml}</ul></div>` : ''}
+        ${ottCritHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${ottCritHtml}</ul></div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Theatrical reference -->
+    <div class="card" style="border-color:rgba(88,166,255,0.2)">
+      <div class="card-title" style="color:var(--cyan)">🎬 Theatrical Reference</div>
+      <p style="font-size:0.82rem;color:var(--text-dim)">Theatrical rating was <strong style="color:var(--cyan)">${rating}</strong> with <strong>${total}</strong> comments across ${videos.length} sources.</p>
+      ${ottTab0.vibe_summary ? `<div class="vibe-block" style="margin-top:8px;font-size:0.85rem">${esc(ottTab0.vibe_summary)}</div>` : ''}
+    </div>
+
+    <!-- OTT Sources -->
+    ${videoHtml ? `
+    <div class="card">
+      <div class="card-title">📺 OTT Sources</div>
+      ${videoHtml}
+    </div>` : ''}
+
+    <div class="footer">
+      Fetched: ${new Date(data.fetched_at || Date.now()).toLocaleString()}
+      · OTT analysis from YouTube + OpenRouter
+    </div>
+  `;
+  } else {
+    // ─── THEATRICAL MODE: 3-tier spoiler tabs ────────────────────
+    document.getElementById('app').innerHTML = `
     <button class="back" onclick="window.location.hash='#/'">← Back</button>
 
     <div class="header" style="padding-top:8px;border:none">
@@ -407,62 +518,6 @@ function renderFilm(film, data) {
       </div>
     </div>
 
-    <!-- Theatrical vs OTT Comparison (inline, always horizontal) -->
-    ${hasOtt ? `
-    <div class="ott-compare-card">
-      <div class="card-title">📺 Theatrical vs OTT — Post-OTT Pulse</div>
-      <div class="rating-compare">
-        <div class="rating-box theatre-box">
-          <div class="label">🎬 Theatrical</div>
-          <div class="value">${rating}</div>
-        </div>
-        <div class="vs-badge">VS</div>
-        <div class="rating-box ott-box">
-          <div class="label">📺 OTT</div>
-          <div class="value">${ottRating || '—'}</div>
-        </div>
-      </div>
-
-      <!-- OTT detail inline (no spoiler tabs) -->
-      <div class="ott-detail">
-        <div class="ott-detail-label">OTT Audience Mood</div>
-        <div class="ott-mood-row">
-          ${ottVibe.ott_mood ? `<span class="buzz-badge ${buzzClass(ottVibe.ott_mood)}">${esc(ottVibe.ott_mood)}</span>` : ''}
-          <span style="font-size:0.82rem;color:var(--text-dim)">${ottStatus.ott_comments || 0} OTT comments</span>
-        </div>
-
-        ${ottVibe.how_it_differs ? `<div class="vibe-block" style="border-left-color:var(--ott)">${esc(ottVibe.how_it_differs)}</div>` : ''}
-        ${ottVibe.theatrical_vs_ott_verdict ? `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:8px"><strong>Verdict:</strong> ${esc(ottVibe.theatrical_vs_ott_verdict)}</p>` : ''}
-
-        ${Object.keys(ottSb).length ? `
-        <div style="margin-top:12px">
-          <div class="sentiment-bar">
-            <div class="seg pos" style="width:${ottSb.positive_percent || 0}%">${(ottSb.positive_percent || 0) > 8 ? (ottSb.positive_percent + '%') : ''}</div>
-            <div class="seg mix" style="width:${ottSb.mixed_percent || 0}%">${(ottSb.mixed_percent || 0) > 8 ? (ottSb.mixed_percent + '%') : ''}</div>
-            <div class="seg neg" style="width:${ottSb.negative_percent || 0}%">${(ottSb.negative_percent || 0) > 8 ? (ottSb.negative_percent + '%') : ''}</div>
-            <div class="seg neu" style="width:${ottSb.neutral_percent || 0}%"></div>
-          </div>
-          <div class="sentiment-labels">
-            <span class="pos">😊 ${ottSb.positive_percent || 0}%</span>
-            <span class="mix">🤔 ${ottSb.mixed_percent || 0}%</span>
-            <span class="neg">😠 ${ottSb.negative_percent || 0}%</span>
-            <span class="neu">😶 ${ottSb.neutral_percent || 0}%</span>
-          </div>
-        </div>` : ''}
-
-        ${ottThemeHtml ? `<div style="margin-top:12px"><div class="theme-pills">${ottThemeHtml}</div></div>` : ''}
-
-        ${ottLovedHtml || ottCritHtml ? `
-        <div style="margin-top:12px">
-          <div class="two-col">
-            ${ottLovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${ottLovedHtml}</ul></div>` : ''}
-            ${ottCritHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${ottCritHtml}</ul></div>` : ''}
-          </div>
-        </div>` : ''}
-      </div>
-    </div>` : ''}
-
-    <!-- Spoiler Tabs: only the 3 theatrical tiers, no OTT tab -->
     <div class="tabs">
       <div class="tab active" onclick="switchTab('zero', this)">🟢 Zero Spoiler</div>
       <div class="tab" onclick="switchTab('mild', this)">🟡 Mild Spoiler</div>
@@ -617,6 +672,7 @@ function renderFilm(film, data) {
       · Built with YouTube Data API + OpenRouter
     </div>
   `;
+  }`;
 }
 
 // ─── Tab Switcher ───────────────────────────────────────────────────
