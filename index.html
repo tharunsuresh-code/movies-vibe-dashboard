@@ -20,17 +20,10 @@
   .header h1 { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .header .sub { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
 
-  /* Section tabs (Leaderboard / OTT Watch toggle) */
-  .section-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .section-tab {
-    padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); transition: all 0.2s; flex: 1; text-align: center;
-  }
-  .section-tab:hover { color: var(--text); border-color: var(--cyan); }
-  .section-tab.active { color: var(--text); background: var(--surface2); border-color: var(--cyan); }
-  .section-tab.ott-tab.active { border-color: var(--ott); }
-  .section-content { display: none; }
-  .section-content.active { display: block; }
+  /* Divider */
+  .section-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 16px; color: var(--text-dim); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-divider .icon { font-size: 1.1rem; }
 
   /* Back button */
   .back { display: inline-flex; align-items: center; gap: 6px; color: var(--cyan); cursor: pointer; font-size: 0.85rem; margin-bottom: 12px; padding: 6px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
@@ -40,13 +33,13 @@
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
   .card-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 12px; }
 
-  /* OTT row */
+  /* OTT row (in leaderboard scroll-down) */
   .ott-row {
-    display: flex; align-items: center; gap: 12px; padding: 16px;
-    border: 1px solid rgba(255,123,114,0.25); border-radius: 10px; margin-bottom: 10px;
-    background: rgba(255,123,114,0.04); cursor: pointer; transition: background 0.15s;
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border: 1px solid rgba(255,123,114,0.2); border-radius: 10px; margin-bottom: 10px;
+    background: rgba(255,123,114,0.03); cursor: pointer; transition: background 0.15s;
   }
-  .ott-row:hover { background: rgba(255,123,114,0.08); }
+  .ott-row:hover { background: rgba(255,123,114,0.07); }
   .ott-info { flex: 1; }
   .ott-name { font-weight: 600; font-size: 1rem; }
   .ott-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -81,7 +74,6 @@
   }
   .tab:hover { color: var(--text); }
   .tab.active { color: var(--text); background: var(--surface2); border-color: var(--cyan); }
-  .tab.ott-tab.active { border-color: var(--ott); color: var(--ott); }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
@@ -93,7 +85,6 @@
   .spoiler-banner.none { background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.2); color: var(--green); }
   .spoiler-banner.mild { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.2); color: var(--yellow); }
   .spoiler-banner.full { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.3); color: var(--red); }
-  .spoiler-banner.ott { background: rgba(255,123,114,0.08); border: 1px solid rgba(255,123,114,0.2); color: var(--ott); }
 
   /* Sentiment bar */
   .sentiment-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin: 8px 0; }
@@ -123,14 +114,13 @@
   .col ul { list-style: none; }
   .col ul li { padding: 6px 0; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); }
   .col ul li:last-child { border: none; }
-  .col ul li::before { content: "✅"; flex-shrink: 0; }
-  .col.criticize ul li::before { content: "❌"; }
+  .col ul li::before { content: "\u2705"; flex-shrink: 0; }
+  .col.criticize ul li::before { content: "\u274c"; }
 
   .source-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
   .source-item:last-child { border: none; }
   .source-item a { color: var(--cyan); text-decoration: none; }
   .source-item .count { color: var(--text-dim); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
-  .source-item .ott-badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 6px; background: rgba(255,123,114,0.15); color: var(--ott); border: 1px solid rgba(255,123,114,0.3); margin-left: 6px; }
 
   .genres { display: flex; gap: 6px; flex-wrap: wrap; }
   .genres span { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.25); color: var(--cyan); padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; }
@@ -150,20 +140,24 @@
 
   .summary-text { font-size: 0.92rem; line-height: 1.7; }
   .vibe-block { background: var(--surface2); border-radius: 8px; padding: 14px; margin: 8px 0; border-left: 3px solid var(--cyan); }
-  .vibe-block.ott-vibe { border-left-color: var(--ott); }
 
-  /* OTT comparison card */
+  /* OTT comparison — ALWAYS horizontal */
   .ott-compare-card { background: rgba(255,123,114,0.05); border: 1px solid rgba(255,123,114,0.2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
   .ott-compare-card .card-title { color: var(--ott); }
-  .rating-compare { display: flex; gap: 16px; align-items: center; }
-  .rating-box { text-align: center; padding: 12px; border-radius: 8px; flex: 1; }
+  .rating-compare { display: flex; gap: 16px; align-items: center; flex-direction: row; }
+  .rating-box { text-align: center; padding: 12px; border-radius: 8px; flex: 1; min-width: 100px; }
   .rating-box.theatre-box { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); }
   .rating-box.ott-box { background: rgba(255,123,114,0.08); border: 1px solid rgba(255,123,114,0.2); }
   .rating-box .label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.05em; }
   .rating-box .value { font-size: 1.8rem; font-weight: 800; margin-top: 4px; }
   .rating-box.theatre-box .value { color: var(--cyan); }
   .rating-box.ott-box .value { color: var(--ott); }
-  .vs-badge { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); }
+  .vs-badge { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); white-space: nowrap; }
+
+  /* OTT inline detail (inside the card, no tab) */
+  .ott-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,123,114,0.15); }
+  .ott-detail-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ott); margin-bottom: 8px; font-weight: 600; }
+  .ott-mood-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 
   .footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.75rem; }
 
@@ -173,7 +167,10 @@
     .rating-num { font-size: 2.2rem; }
     .tabs { flex-wrap: nowrap; }
     .tab { font-size: 0.75rem; padding: 8px 10px; }
-    .rating-compare { flex-direction: column; }
+    /* Keep OTT comparison horizontal even on mobile */
+    .rating-compare { flex-direction: row; }
+    .rating-box { padding: 8px; min-width: 80px; }
+    .rating-box .value { font-size: 1.4rem; }
   }
 </style>
 </head>
@@ -185,7 +182,7 @@
 <script>
 // ─── Config ─────────────────────────────────────────────────────────
 const API_BASE = "https://gage-voting-lets-generators.trycloudflare.com";
-const API_KEY  = "__VITE_API_KEY__";  // replaced at build time
+const API_KEY  = "__VITE_API_KEY__";
 const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
 
 function route() {
@@ -201,7 +198,6 @@ function route() {
 window.addEventListener('hashchange', route);
 
 // ─── Helpers ─────────────────────────────────────────────────────────
-function $(id) { return document.getElementById(id); }
 function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, function(m) {
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
 
@@ -215,17 +211,7 @@ function freqDot(f) {
   return map[f.toLowerCase()] || 'md';
 }
 
-// ─── Section Switcher (Leaderboard / OTT Watch) ─────────────────────
-function switchSection(name) {
-  document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.section-content').forEach(t => t.classList.remove('active'));
-  const tab = document.querySelector(`.section-tab[data-section="${name}"]`);
-  const content = document.getElementById(`section-${name}`);
-  if (tab) tab.classList.add('active');
-  if (content) content.classList.add('active');
-}
-
-// ─── Leaderboard ────────────────────────────────────────────────────
+// ─── Leaderboard + OTT (scroll-down) ────────────────────────────────
 async function showLeaderboard() {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
   try {
@@ -235,13 +221,13 @@ async function showLeaderboard() {
     ]);
     const films = await lbRes.json();
     const ottFilms = await ottRes.json();
-    renderLeaderboard(films, ottFilms);
+    renderDashboard(films, ottFilms);
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error-msg">⚠️ ${esc(e.message)}</div>`;
   }
 }
 
-function renderLeaderboard(films, ottFilms) {
+function renderDashboard(films, ottFilms) {
   if ((!films || films.length === 0) && (!ottFilms || ottFilms.length === 0)) {
     document.getElementById('app').innerHTML = '<div class="error-msg">No films tracked yet.</div>';
     return;
@@ -252,15 +238,11 @@ function renderLeaderboard(films, ottFilms) {
       <h1>🎬 Kollywood Pulse</h1>
       <div class="sub">Social media review dashboard — Top films by public discussion</div>
     </div>
-    <div class="section-tabs">
-      <div class="section-tab active" data-section="leaderboard" onclick="switchSection('leaderboard')">🔥 Theatrical Leaderboard</div>
-      <div class="section-tab ott-tab" data-section="ottwatch" onclick="switchSection('ottwatch')">📺 OTT Watch${ottFilms && ottFilms.length ? ` <span style="font-size:0.7rem;color:var(--ott)">(${ottFilms.length})</span>` : ''}</div>
-    </div>
-    <div id="section-leaderboard" class="section-content active">
   `;
 
+  // ── LEADERBOARD ────────────────────────────────────────────────
+  html += `<div class="card" style="padding:8px">`;
   if (films && films.length > 0) {
-    html += `<div class="card" style="padding:8px">`;
     films.forEach((f, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const buzz = f.buzz || '';
@@ -284,16 +266,18 @@ function renderLeaderboard(films, ottFilms) {
         </div>
       `;
     });
-    html += `</div>`;
   } else {
     html += `<div class="card"><p style="color:var(--text-dim);text-align:center;padding:20px">No films on leaderboard right now. New releases appear here once they have enough discussion.</p></div>`;
   }
+  html += `</div>`;
 
-  html += `</div><div id="section-ottwatch" class="section-content">`;
-
+  // ── OTT WATCH (scroll-down) ────────────────────────────────────
   if (ottFilms && ottFilms.length > 0) {
-    html += `<div class="card"><div class="card-title">📺 OTT Watch — Post-theatrical discussion</div>`;
-    html += `<p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px">Audience reactions after OTT release. Compare how the vibe shifts from theatrical to home viewing.</p>`;
+    html += `
+      <div class="section-divider"><span class="icon">📺</span> OTT Watch — Post-theatrical discussion <span class="icon">📺</span></div>
+      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Audience reactions after OTT release. Compare theatrical vs home viewing vibe.</p>
+      <div class="card" style="padding:8px">
+    `;
     ottFilms.forEach((f, i) => {
       const ratingHtml = f.rating ? `<span class="ott-rating">⭐ ${f.rating}</span>` : '';
       const theatreRating = f.theatrical_rating ? `<span class="ott-compare">🎬 Theatrical: ${f.theatrical_rating}</span>` : '';
@@ -320,11 +304,9 @@ function renderLeaderboard(films, ottFilms) {
       `;
     });
     html += `</div>`;
-  } else {
-    html += `<div class="card"><p style="color:var(--text-dim);text-align:center;padding:20px">No OTT discussions tracked yet. Films appear here once OTT-focused YouTube review videos are found and analyzed.</p></div>`;
   }
 
-  html += `</div>
+  html += `
     <div class="footer">
       Data refreshes every 6 hours · Powered by YouTube API + OpenRouter
       <br><span style="font-size:0.7rem;color:var(--text-dim)">Click any film for detailed analysis</span>
@@ -373,7 +355,7 @@ function renderFilm(film, data) {
     `<div class="source-item">
       <span>▶️</span>
       <a href="${esc(v.url)}" target="_blank">${esc(v.title || '')}</a>
-      ${v.is_ott ? `<span class="ott-badge">OTT</span>` : ''}
+      ${v.is_ott ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">OTT</span>` : ''}
       <span class="count">${v.comment_count || 0} comments</span>
     </div>`
   ).join('');
@@ -384,21 +366,15 @@ function renderFilm(film, data) {
   const comps = a.audience_engagement?.comparisons || [];
   const compHtml = comps.length ? comps.map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">🔗 ${esc(c)}</li>`).join('') : '';
 
-  // OTT analysis sections
-  const ottVibe = ottAnalysis.ott_vibe || {};
-  const ottTab0 = ottAnalysis.tab_zero_spoiler || {};
-  const ottTab1 = ottAnalysis.tab_mild_spoiler || {};
+  // OTT analysis inline data
   const ottSb = ottAnalysis.sentiment_breakdown || {};
-
   const ottThemeHtml = (ottAnalysis.top_themes || []).map(t =>
     `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`
   ).join('');
-
   const ottLovedHtml = (ottAnalysis.what_people_loved || []).map(l => `<li>${esc(l)}</li>`).join('');
   const ottCritHtml = (ottAnalysis.what_people_criticized || []).map(c => `<li>${esc(c)}</li>`).join('');
-
-  // OTT rating for comparison
   const ottRating = ottAnalysis.rating || null;
+  const ottVibe = ottAnalysis.ott_vibe || {};
 
   document.getElementById('app').innerHTML = `
     <button class="back" onclick="window.location.hash='#/'">← Back</button>
@@ -413,10 +389,10 @@ function renderFilm(film, data) {
       </div>
     </div>
 
-    <!-- Theatrical vs OTT Comparison (if OTT analysis exists) -->
-    ${hasOtt && ottRating ? `
+    <!-- Theatrical vs OTT Comparison (inline, always horizontal) -->
+    ${hasOtt ? `
     <div class="ott-compare-card">
-      <div class="card-title">📺 Theatrical vs OTT — How does the vibe shift?</div>
+      <div class="card-title">📺 Theatrical vs OTT — Post-OTT Pulse</div>
       <div class="rating-compare">
         <div class="rating-box theatre-box">
           <div class="label">🎬 Theatrical</div>
@@ -425,19 +401,54 @@ function renderFilm(film, data) {
         <div class="vs-badge">VS</div>
         <div class="rating-box ott-box">
           <div class="label">📺 OTT</div>
-          <div class="value">${ottRating}</div>
+          <div class="value">${ottRating || '—'}</div>
         </div>
       </div>
-      ${ottVibe.how_it_differs ? `<div class="vibe-block ott-vibe" style="margin-top:12px">${esc(ottVibe.how_it_differs)}</div>` : ''}
-      ${ottVibe.theatrical_vs_ott_verdict ? `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:8px"><strong>Verdict:</strong> ${esc(ottVibe.theatrical_vs_ott_verdict)}</p>` : ''}
+
+      <!-- OTT detail inline (no spoiler tabs) -->
+      <div class="ott-detail">
+        <div class="ott-detail-label">OTT Audience Mood</div>
+        <div class="ott-mood-row">
+          ${ottVibe.ott_mood ? `<span class="buzz-badge ${buzzClass(ottVibe.ott_mood)}">${esc(ottVibe.ott_mood)}</span>` : ''}
+          <span style="font-size:0.82rem;color:var(--text-dim)">${ottStatus.ott_comments || 0} OTT comments</span>
+        </div>
+
+        ${ottVibe.how_it_differs ? `<div class="vibe-block" style="border-left-color:var(--ott)">${esc(ottVibe.how_it_differs)}</div>` : ''}
+        ${ottVibe.theatrical_vs_ott_verdict ? `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:8px"><strong>Verdict:</strong> ${esc(ottVibe.theatrical_vs_ott_verdict)}</p>` : ''}
+
+        ${Object.keys(ottSb).length ? `
+        <div style="margin-top:12px">
+          <div class="sentiment-bar">
+            <div class="seg pos" style="width:${ottSb.positive_percent || 0}%">${(ottSb.positive_percent || 0) > 8 ? (ottSb.positive_percent + '%') : ''}</div>
+            <div class="seg mix" style="width:${ottSb.mixed_percent || 0}%">${(ottSb.mixed_percent || 0) > 8 ? (ottSb.mixed_percent + '%') : ''}</div>
+            <div class="seg neg" style="width:${ottSb.negative_percent || 0}%">${(ottSb.negative_percent || 0) > 8 ? (ottSb.negative_percent + '%') : ''}</div>
+            <div class="seg neu" style="width:${ottSb.neutral_percent || 0}%"></div>
+          </div>
+          <div class="sentiment-labels">
+            <span class="pos">😊 ${ottSb.positive_percent || 0}%</span>
+            <span class="mix">🤔 ${ottSb.mixed_percent || 0}%</span>
+            <span class="neg">😠 ${ottSb.negative_percent || 0}%</span>
+            <span class="neu">😶 ${ottSb.neutral_percent || 0}%</span>
+          </div>
+        </div>` : ''}
+
+        ${ottThemeHtml ? `<div style="margin-top:12px"><div class="theme-pills">${ottThemeHtml}</div></div>` : ''}
+
+        ${ottLovedHtml || ottCritHtml ? `
+        <div style="margin-top:12px">
+          <div class="two-col">
+            ${ottLovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${ottLovedHtml}</ul></div>` : ''}
+            ${ottCritHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${ottCritHtml}</ul></div>` : ''}
+          </div>
+        </div>` : ''}
+      </div>
     </div>` : ''}
 
-    <!-- Tabs: existing 3 + OTT if available -->
+    <!-- Spoiler Tabs: only the 3 theatrical tiers, no OTT tab -->
     <div class="tabs">
       <div class="tab active" onclick="switchTab('zero', this)">🟢 Zero Spoiler</div>
       <div class="tab" onclick="switchTab('mild', this)">🟡 Mild Spoiler</div>
       <div class="tab" onclick="switchTab('full', this)">🔴 Full Spoiler</div>
-      ${hasOtt ? `<div class="tab ott-tab" onclick="switchTab('ott', this)">📺 OTT View</div>` : ''}
     </div>
 
     <!-- TAB 0: ZERO SPOILER -->
@@ -582,96 +593,6 @@ function renderFilm(film, data) {
         <p class="summary-text">${esc(a.audience_engagement.theatre_response)}</p>
       </div>` : ''}
     </div>
-
-    <!-- TAB 3: OTT VIEW (only if available) -->
-    ${hasOtt ? `
-    <div id="tab-ott" class="tab-content">
-      <div class="spoiler-banner ott">📺 OTT audience discussion — post-theatrical reactions from home viewers</div>
-
-      ${ottVibe.ott_mood ? `
-      <div class="card">
-        <div class="card-title">📺 OTT Mood</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <span class="buzz-badge ${buzzClass(ottVibe.ott_mood)}">${esc(ottVibe.ott_mood)}</span>
-          <span style="font-size:0.82rem;color:var(--text-dim)">${ottStatus.ott_comments || 0} OTT comments analyzed</span>
-        </div>
-        ${ottVibe.how_it_differs ? `<p class="summary-text" style="margin-top:12px">${esc(ottVibe.how_it_differs)}</p>` : ''}
-      </div>` : ''}
-
-      ${ottVibe.theatrical_vs_ott_verdict ? `
-      <div class="card">
-        <div class="card-title">🎯 Theatrical vs OTT — Verdict Shift</div>
-        <p class="summary-text" style="color:var(--ott)">${esc(ottVibe.theatrical_vs_ott_verdict)}</p>
-      </div>` : ''}
-
-      <div class="card">
-        <div class="card-title">📊 OTT Sentiment</div>
-        <div class="sentiment-bar">
-          <div class="seg pos" style="width:${ottSb.positive_percent || 0}%">${(ottSb.positive_percent || 0) > 8 ? (ottSb.positive_percent + '%') : ''}</div>
-          <div class="seg mix" style="width:${ottSb.mixed_percent || 0}%">${(ottSb.mixed_percent || 0) > 8 ? (ottSb.mixed_percent + '%') : ''}</div>
-          <div class="seg neg" style="width:${ottSb.negative_percent || 0}%">${(ottSb.negative_percent || 0) > 8 ? (ottSb.negative_percent + '%') : ''}</div>
-          <div class="seg neu" style="width:${ottSb.neutral_percent || 0}%"></div>
-        </div>
-        <div class="sentiment-labels">
-          <span class="pos">😊 ${ottSb.positive_percent || 0}%</span>
-          <span class="mix">🤔 ${ottSb.mixed_percent || 0}%</span>
-          <span class="neg">😠 ${ottSb.negative_percent || 0}%</span>
-          <span class="neu">😶 ${ottSb.neutral_percent || 0}%</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">⭐ OTT Rating</div>
-        <div class="rating-hero">
-          <div class="rating-num">${ottRating || '—'}</div>
-          <div>
-            <div class="rating-stars">${ottRating ? "★".repeat(Math.min(10, Math.floor(ottRating))) + "☆".repeat(Math.max(0, 10 - Math.floor(ottRating))) : ''}</div>
-            <div class="rating-label">${ottRating ? `From OTT YouTube comments` : ''}</div>
-          </div>
-        </div>
-      </div>
-
-      ${ottTab0.vibe_summary ? `
-      <div class="card">
-        <div class="card-title">🎭 OTT Audience Vibe</div>
-        <div class="vibe-block ott-vibe">${esc(ottTab0.vibe_summary)}</div>
-      </div>` : ''}
-
-      ${ottTab0.performance_highlights ? `
-      <div class="card">
-        <div class="card-title">🎭 OTT Performance Highlights</div>
-        <p class="summary-text">${esc(ottTab0.performance_highlights)}</p>
-      </div>` : ''}
-
-      ${ottTab0.technical_highlights ? `
-      <div class="card">
-        <div class="card-title">⚙️ OTT Technical Highlights</div>
-        <p class="summary-text">${esc(ottTab0.technical_highlights)}</p>
-      </div>` : ''}
-
-      ${ottTab1.first_half_vibe ? `
-      <div class="card">
-        <div class="card-title">🎬 OTT — First Half Vibe</div>
-        <p class="summary-text">${esc(ottTab1.first_half_vibe)}</p>
-      </div>` : ''}
-
-      ${ottTab1.second_half_vibe ? `
-      <div class="card">
-        <div class="card-title">🎬 OTT — Second Half Vibe</div>
-        <p class="summary-text">${esc(ottTab1.second_half_vibe)}</p>
-      </div>` : ''}
-
-      ${ottThemeHtml ? `<div class="card"><div class="card-title">🔍 OTT Key Themes</div><div class="theme-pills">${ottThemeHtml}</div></div>` : ''}
-
-      ${ottLovedHtml || ottCritHtml ? `
-      <div class="card">
-        <div class="card-title">❤️ OTT Audience Says</div>
-        <div class="two-col">
-          ${ottLovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${ottLovedHtml}</ul></div>` : ''}
-          ${ottCritHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${ottCritHtml}</ul></div>` : ''}
-        </div>
-      </div>` : ''}
-    </div>` : ''}
 
     <div class="footer">
       Fetched: ${new Date(data.fetched_at || Date.now()).toLocaleString()}
