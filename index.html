@@ -169,19 +169,20 @@
 // ─── Config ─────────────────────────────────────────────────────────
 const VPS_IP = "http://84.247.164.29:8080";
 const TUNNEL_URL = "https://besides-irrigation-dynamic-girls.trycloudflare.com";
-let API_BASE = ""; // same origin when served from backend
+// On HTTPS pages (Vercel), use the tunnel URL immediately (synchronous)
+// On HTTP pages (VPS direct), API_BASE stays "" for same-origin calls
+let API_BASE = window.location.protocol === 'https:' ? TUNNEL_URL : "";
 const API_KEY  = "__VITE_API_KEY__";
 const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
 
-// Auto-discover tunnel URL (non-blocking, uses hardcoded fallback)
+// Auto-discover tunnel URL (non-blocking, updates API_BASE if found)
 (async function discoverTunnel() {
   try {
     const r = await fetch(`${VPS_IP}/api/tunnel-url`, { signal: AbortSignal.timeout(5000) });
     const data = await r.json();
     if (data.url) API_BASE = data.url;
   } catch(e) {
-    // mixed content from HTTPS page — use hardcoded tunnel URL
-    if (window.location.protocol === 'https:') API_BASE = TUNNEL_URL;
+    // mixed content from HTTPS page — fallback already set above
   }
 })();
 
