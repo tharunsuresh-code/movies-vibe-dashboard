@@ -100,8 +100,8 @@
   .col ul { list-style: none; }
   .col ul li { padding: 6px 0; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); }
   .col ul li:last-child { border: none; }
-  .col ul li::before { content: "\u2705"; flex-shrink: 0; }
-  .col.criticize ul li::before { content: "\u274c"; }
+  .col ul li::before { content: "\2705"; flex-shrink: 0; }
+  .col.criticize ul li::before { content: "\274c"; }
 
   .source-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
   .source-item:last-child { border: none; }
@@ -251,7 +251,7 @@ function renderDashboard(films, newReleases, ottFilms) {
       const buzz = f.buzz || '';
       const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
       const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
-      const genreHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join('');
+      const genreHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join(' ');
 
       html += `
         <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
@@ -393,7 +393,7 @@ function renderFilm(film, data) {
     </div>`
   ).join('');
 
-  const genreHtml = (a.genre || []).map(g => `<span>${esc(g)}</span>`).join('');
+  const genreHtml = (a.genre || []).map(g => `<span>${esc(g)}</span>`).join(' ');
 
   // Comparisons
   const comps = a.audience_engagement?.comparisons || [];
@@ -645,8 +645,8 @@ function renderFilm(film, data) {
       <div class="card">
         <div class="card-title">⭐ What Audiences Felt</div>
         <ul style="list-style:none">
-          ${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">✅ ${esc(l)}</li>`).join('')}
-          ${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">❌ ${esc(c)}</li>`).join('')}
+          ${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(l)}</li>`).join('')}
+          ${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(c)}</li>`).join('')}
         </ul>
       </div>` : ''}
     </div>
