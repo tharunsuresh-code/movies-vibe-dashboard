@@ -185,6 +185,8 @@
 <script>
 // ─── Config ─────────────────────────────────────────────────────────
 const API_BASE = "https://gage-voting-lets-generators.trycloudflare.com";
+const API_KEY  = "__VITE_API_KEY__";  // replaced at build time
+const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
 
 function route() {
   const hash = window.location.hash || '#/';
@@ -228,8 +230,8 @@ async function showLeaderboard() {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
   try {
     const [lbRes, ottRes] = await Promise.all([
-      fetch(`${API_BASE}/api/leaderboard`),
-      fetch(`${API_BASE}/api/ott-watch`),
+      fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS }),
+      fetch(`${API_BASE}/api/ott-watch`, { headers: API_HEADERS }),
     ]);
     const films = await lbRes.json();
     const ottFilms = await ottRes.json();
@@ -335,7 +337,7 @@ function renderLeaderboard(films, ottFilms) {
 async function showFilm(film) {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading analysis...</div></div>';
   try {
-    const r = await fetch(`${API_BASE}/api/film/${encodeURIComponent(film)}`);
+    const r = await fetch(`${API_BASE}/api/film/${encodeURIComponent(film)}`, { headers: API_HEADERS });
     const data = await r.json();
     renderFilm(film, data);
   } catch(e) {
