@@ -168,7 +168,7 @@
 <script>
 // ─── Config ─────────────────────────────────────────────────────────
 const VPS_IP = "http://84.247.164.29:8080";
-let API_BASE = ""; // auto-detected: empty = same origin, tunnel if discovered
+let API_BASE = ""; // same origin when served from backend
 const API_KEY  = "__VITE_API_KEY__";
 const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
 
