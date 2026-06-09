@@ -30,22 +30,8 @@
   .back:hover { border-color: var(--cyan); }
 
   /* Card */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
   .card-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 12px; }
-
-  /* OTT row (in leaderboard scroll-down) */
-  .ott-row {
-    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-    border: 1px solid rgba(255,123,114,0.2); border-radius: 10px; margin-bottom: 10px;
-    background: rgba(255,123,114,0.03); cursor: pointer; transition: background 0.15s;
-  }
-  .ott-row:hover { background: rgba(255,123,114,0.07); }
-  .ott-info { flex: 1; }
-  .ott-name { font-weight: 600; font-size: 1rem; }
-  .ott-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
-  .ott-score { font-size: 1rem; font-weight: 700; color: var(--ott); text-align: right; }
-  .ott-rating { font-size: 0.85rem; color: var(--accent); }
-  .ott-compare { font-size: 0.7rem; color: var(--text-dim); background: var(--surface2); padding: 2px 8px; border-radius: 10px; }
 
   /* Leaderboard row */
   .lb-row {
@@ -213,22 +199,24 @@ function freqDot(f) {
 
 // ─── Leaderboard + OTT (scroll-down) ────────────────────────────────
 async function showLeaderboard() {
-  document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading leaderboard...</div></div>';
+  document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading...</div></div>';
   try {
-    const [lbRes, ottRes] = await Promise.all([
+    const [lbRes, nrRes, ottRes] = await Promise.all([
       fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS }),
+      fetch(`${API_BASE}/api/new-releases`, { headers: API_HEADERS }),
       fetch(`${API_BASE}/api/ott-watch`, { headers: API_HEADERS }),
     ]);
     const films = await lbRes.json();
+    const newReleases = await nrRes.json();
     const ottFilms = await ottRes.json();
-    renderDashboard(films, ottFilms);
+    renderDashboard(films, newReleases, ottFilms);
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error-msg">⚠️ ${esc(e.message)}</div>`;
   }
 }
 
-function renderDashboard(films, ottFilms) {
-  if ((!films || films.length === 0) && (!ottFilms || ottFilms.length === 0)) {
+function renderDashboard(films, newReleases, ottFilms) {
+  if ((!films || films.length === 0) && (!newReleases || newReleases.length === 0) && (!ottFilms || ottFilms.length === 0)) {
     document.getElementById('app').innerHTML = '<div class="error-msg">No films tracked yet.</div>';
     return;
   }
@@ -240,7 +228,7 @@ function renderDashboard(films, ottFilms) {
     </div>
   `;
 
-  // ── LEADERBOARD ────────────────────────────────────────────────
+  // ── SECTION 1: THEATRICAL LEADERBOARD ─────────────────────────
   html += `<div class="card" style="padding:8px">`;
   if (films && films.length > 0) {
     films.forEach((f, i) => {
@@ -267,39 +255,69 @@ function renderDashboard(films, ottFilms) {
       `;
     });
   } else {
-    html += `<div class="card"><p style="color:var(--text-dim);text-align:center;padding:20px">No films on leaderboard right now. New releases appear here once they have enough discussion.</p></div>`;
+    html += `<p style="color:var(--text-dim);text-align:center;padding:20px">No films on leaderboard right now.</p>`;
   }
   html += `</div>`;
 
-  // ── OTT WATCH (scroll-down) ────────────────────────────────────
+  // ── SECTION 2: NEW RELEASES (only if any) ─────────────────────
+  if (newReleases && newReleases.length > 0) {
+    html += `
+      <div class="section-divider"><span class="icon">⭐</span> New Releases <span class="icon">⭐</span></div>
+      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Freshly released — gathering audience reactions</p>
+      <div class="card" style="padding:8px">
+    `;
+    newReleases.forEach((f, i) => {
+      const buzz = f.buzz || '';
+      const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
+      const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
+
+      html += `
+        <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
+          <div class="lb-rank">#</div>
+          <div class="lb-info">
+            <div class="lb-name">${esc(f.film)}</div>
+            <div class="lb-meta">
+              ${ratingHtml}
+              ${buzzHtml}
+              <span>💬 ${f.total_comments || 0}</span>
+              <span class="lb-tag" style="border-color:var(--accent);color:var(--accent)">NEW</span>
+            </div>
+          </div>
+          <div class="lb-score">—</div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  // ── SECTION 3: OTT RELEASE BOARD (matches leaderboard format) ──
   if (ottFilms && ottFilms.length > 0) {
     html += `
-      <div class="section-divider"><span class="icon">📺</span> OTT Watch — Post-theatrical discussion <span class="icon">📺</span></div>
-      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Audience reactions after OTT release. Compare theatrical vs home viewing vibe.</p>
+      <div class="section-divider"><span class="icon">📺</span> OTT Release Board <span class="icon">📺</span></div>
+      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Post-theatrical discussion — how the vibe shifts at home</p>
       <div class="card" style="padding:8px">
     `;
     ottFilms.forEach((f, i) => {
-      const ratingHtml = f.rating ? `<span class="ott-rating">⭐ ${f.rating}</span>` : '';
-      const theatreRating = f.theatrical_rating ? `<span class="ott-compare">🎬 Theatrical: ${f.theatrical_rating}</span>` : '';
-      const moodHtml = f.ott_mood ? `<span class="buzz-badge ${buzzClass(f.ott_mood)}">${esc(f.ott_mood)}</span>` : '';
-      const howDiff = f.how_it_differs ? `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px">${esc(f.how_it_differs)}</div>` : '';
-      const ottDate = f.ott_release_date ? `<span class="lb-tag">📅 OTT: ${f.ott_release_date}</span>` : '';
+      const buzz = f.ott_mood || '';
+      const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
+      const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
+      const theatreCompare = f.theatrical_rating ? `<span class="lb-tag" style="border-color:rgba(88,166,255,0.4);color:var(--cyan)">🎬 ${f.theatrical_rating}</span>` : '';
+      const ottDate = f.ott_release_date ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">📺 ${f.ott_release_date}</span>` : '';
 
       html += `
-        <div class="ott-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
-          <div style="font-size:1.2rem;min-width:28px">#${i + 1}</div>
-          <div class="ott-info">
-            <div class="ott-name">${esc(f.film)}</div>
-            <div class="ott-meta">
+        <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
+          <div class="lb-rank" style="color:var(--ott)">${i + 1}</div>
+          <div class="lb-info">
+            <div class="lb-name">${esc(f.film)}</div>
+            <div class="lb-meta">
               ${ratingHtml}
-              ${moodHtml}
-              ${theatreRating}
+              ${buzzHtml}
+              ${theatreCompare}
               ${ottDate}
-              <span>💬 ${f.ott_comments || 0} OTT comments</span>
+              <span>💬 ${f.ott_comments || 0}</span>
             </div>
-            ${howDiff}
           </div>
-          <div class="ott-score">${f.ott_score || 0}</div>
+          <div class="lb-score" style="color:var(--ott)">${f.ott_score || 0}</div>
         </div>
       `;
     });
