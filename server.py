@@ -74,7 +74,7 @@ FILMS_META = {
     "Love Insurance Kompany": {"release_date": "2026-04-10", "star": "Pradeep Ranganathan, SJ Suryah, Krithi Shetty", "ott_release_date": "2026-05-06", "ott_platform": "Amazon Prime Video"},
     "Mr. X":                  {"release_date": "2026-04-17", "star": "Arya, Gautham Ram Karthik", "ott_release_date": "2026-05-14", "ott_platform": "Disney+ Hotstar"},
     "Battle":                 {"release_date": "2026-04-24", "star": "Arjun Prabhakaran, Aradhya Krishna", "ott_release_date": None, "ott_platform": None},
-    "Kara":                   {"release_date": "2026-04-30", "star": "Dhanush, Mamitha Baiju, Jayaram", "ott_release_date": "2026-05-29", "ott_platform": "Netflix"},
+    "Kara":                   {"release_date": "2026-04-30", "star": "Dhanush, Mamitha Baiju, Jayaram", "ott_release_date": None, "ott_platform": None},
     "Retta Thala":            {"release_date": "2026-03-20", "star": "Arun Vijay, Siddhi", "ott_release_date": None, "ott_platform": None},
 }
 
@@ -147,51 +147,96 @@ def is_ott_video(video: dict) -> bool:
 
 
 def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[dict]:
-    """Search YouTube for review videos. Returns [{id, title, channel, published, is_ott, ott_source}]."""
-    queries = [
+    """Search YouTube for review videos. Returns [{id, title, channel, published, is_ott}].
+    Runs separate search passes: theatrical reviews + OTT-specific content."""
+    # Phase 1: Theatrical review queries
+    review_queries = [
         f"{film} movie review tamil",
         f"{film} review tamil",
         f"{film} public review",
         f"{film} honest review",
         f"{film} Baradwaj Rangan",
         f"{film} galatta plus",
-        # OTT-specific queries
+    ]
+    # Phase 2: OTT-specific queries (run separately to guarantee OTT video coverage)
+    ott_queries = [
         f"{film} OTT review tamil",
         f"{film} ott watch review",
         f"{film} netflix review tamil",
-        f"{film} prime video tamil review",
-        f"{film} streaming tamil",
+        f"{film} OTT release",
+        f"{film} streaming now",
     ]
+
     seen = {}
-    for q in queries:
-        if len(seen) >= max_videos * 2:  # collect more candidates, filter down later
+    skip_keywords = ["#shorts", "deleted scene", "collection", "24th day", "box office"]
+
+    # Run theatrical searches
+    for q in review_queries:
+        if len(seen) >= max_videos * 5:
             break
-        params = {"part": "snippet", "q": q, "type": "video", "maxResults": 15,
-                  "relevanceLanguage": "ta", "key": api_key, "order": "relevance"}
-        resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=15)
-        if resp.status_code != 200:
-            continue
-        for item in resp.json().get("items", []):
-            vid = item["id"]["videoId"]
-            title = item["snippet"]["title"].lower()
-            # Skip shorts and non-review content
-            if any(kw in title for kw in ["#shorts", "deleted scene", "collection", "24th day", "box office"]):
+        try:
+            params = {"part": "snippet", "q": q, "type": "video", "maxResults": 10,
+                      "relevanceLanguage": "ta", "key": api_key, "order": "relevance"}
+            resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=15)
+            if resp.status_code != 200:
                 continue
-            if vid not in seen:
-                v = {
-                    "id": vid,
-                    "title": item["snippet"]["title"],
-                    "channel": item["snippet"]["channelTitle"],
-                    "published": item["snippet"]["publishedAt"],
-                }
-                v["is_ott"] = is_ott_video(v)
-                seen[vid] = v
-    # Ensure we get a mix: at least 1 OTT video if available
+            for item in resp.json().get("items", []):
+                vid = item["id"]["videoId"]
+                title = item["snippet"]["title"].lower()
+                if any(kw in title for kw in skip_keywords):
+                    continue
+                if vid not in seen:
+                    v = {
+                        "id": vid,
+                        "title": item["snippet"]["title"],
+                        "channel": item["snippet"]["channelTitle"],
+                        "published": item["snippet"]["publishedAt"],
+                    }
+                    v["is_ott"] = is_ott_video(v)
+                    seen[vid] = v
+        except:
+            continue
+
+    # Run OTT-specific searches (broader, keep announcements with platform names)
+    for q in ott_queries:
+        if len(seen) >= max_videos * 8:
+            break
+        try:
+            params = {"part": "snippet", "q": q, "type": "video", "maxResults": 10,
+                      "key": api_key, "order": "relevance"}
+            resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            for item in resp.json().get("items", []):
+                vid = item["id"]["videoId"]
+                title = item["snippet"]["title"].lower()
+                published = item["snippet"]["publishedAt"]
+                # Skip very old content (pre-2025) and shorts
+                if any(kw in title for kw in ["#shorts", "deleted scene"]):
+                    continue
+                if published < "2025-01-01":
+                    continue
+                if vid not in seen:
+                    v = {
+                        "id": vid,
+                        "title": item["snippet"]["title"],
+                        "channel": item["snippet"]["channelTitle"],
+                        "published": published,
+                    }
+                    v["is_ott"] = is_ott_video(v)
+                    seen[vid] = v
+        except:
+            continue
+
+    # Build result: theatrical priority, but always include OTT if available
     all_videos = list(seen.values())
     ott_vids = [v for v in all_videos if v["is_ott"]]
     theatrical_vids = [v for v in all_videos if not v["is_ott"]]
-    # Return up to max_videos, ensuring at most max_videos total with OTT priority
-    result = theatrical_vids[:4] + ott_vids[:2]
+
+    # Ensure at least 1 OTT video if any found, up to 3
+    ott_count = min(len(ott_vids), 3)
+    theatre_count = min(len(theatrical_vids), max_videos - ott_count)
+    result = theatrical_vids[:theatre_count] + ott_vids[:ott_count]
     return result[:max_videos]
 
 
