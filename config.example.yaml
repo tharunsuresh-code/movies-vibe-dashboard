@@ -1,0 +1,16 @@
+# Tamil Movie Review Dashboard - Config
+# Copy to config.yaml and fill in your keys
+
+# === YouTube ===
+# Get a free API key: https://console.cloud.google.com/apis/credentials
+# Enable YouTube Data API v3 in your project first.
+youtube_api_key: ""  # Leave empty to use yt-dlp browser-cookie mode
+
+# === OpenRouter (for LLM summarization) ===
+# Reuses your Hermes OpenRouter key by default from env
+# openrouter_api_key: "${OPENROUTER_API_KEY}"
+
+# === Output ===
+output_dir: "./output"
+max_comments_per_video: 200
+max_videos: 5

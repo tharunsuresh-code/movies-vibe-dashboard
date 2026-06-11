@@ -6,14 +6,34 @@
 <title>Tamil Movie Review Dashboard</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   :root {
+    --bg: #f8f9fa; --surface: #ffffff; --surface2: #f0f2f5; --border: #e1e4e8;
+    --text: #1f2328; --text-dim: #656d76; --green: #1a7f37; --red: #cf222e;
+    --yellow: #9a6700; --cyan: #0969da; --purple: #8250df; --accent: #bc4c00;
+    --radius: 12px;
+    --shadow-hover: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  [data-theme="dark"] {
     --bg: #0d1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
     --text: #e6edf3; --text-dim: #8b949e; --green: #3fb950; --red: #f85149;
-    --yellow: #d29922; --cyan: #58a6ff; --purple: #bc8cff; --accent: #f0883e; --ott: #ff7b72;
-    --radius: 12px;
+    --yellow: #d29922; --cyan: #58a6ff; --purple: #bc8cff; --accent: #f0883e;
+    --shadow-hover: 0 2px 12px rgba(0,0,0,0.3);
   }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; transition: background 0.3s, color 0.3s; }
   .container { max-width: 800px; margin: 0 auto; padding: 16px; }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 1000;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-size: 1.2rem; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .theme-toggle:hover { box-shadow: var(--shadow-hover); transform: scale(1.05); }
 
   /* Header */
   .header { text-align: center; padding: 32px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
@@ -26,26 +46,31 @@
   .section-divider .icon { font-size: 1.1rem; }
 
   /* Back button */
-  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--cyan); cursor: pointer; font-size: 0.85rem; margin-bottom: 12px; padding: 6px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
+  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--cyan); cursor: pointer; font-size: 0.85rem; margin-bottom: 12px; padding: 6px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); min-height: 44px; }
   .back:hover { border-color: var(--cyan); }
 
   /* Card */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; transition: box-shadow 0.2s; }
+  .card:hover { box-shadow: var(--shadow-hover); }
   .card-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 12px; }
 
   /* Leaderboard row */
   .lb-row {
     display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-    border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s;
-    border-radius: 8px;
+    border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s, border-left 0.15s;
+    border-radius: 8px; border-left: 3px solid transparent;
   }
-  .lb-row:hover { background: var(--surface2); }
-  .lb-row:last-child { border: none; }
+  .lb-row:hover { background: var(--surface2); border-left-color: var(--accent); }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-header { display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 55px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .lb-header-label { font-size: 0.72rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+  .lb-header-label:last-child { flex: 0 0 auto; min-width: 50px; }
   .lb-rank { font-size: 1.2rem; font-weight: 800; color: var(--text-dim); min-width: 32px; text-align: center; }
   .lb-rank.top1 { color: var(--accent); } .lb-rank.top2 { color: var(--cyan); } .lb-rank.top3 { color: var(--purple); }
   .lb-info { flex: 1; }
   .lb-name { font-weight: 600; font-size: 1rem; }
-  .lb-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .lb-release-date { font-size: 0.72rem; color: var(--text-dim); margin-top: 1px; }
+  .lb-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .lb-score { font-size: 1.1rem; font-weight: 700; color: var(--green); text-align: right; }
   .lb-rating { font-size: 0.85rem; color: var(--accent); }
   .lb-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
@@ -53,13 +78,13 @@
   /* 3-tier Tabs */
   .tabs { display: flex; gap: 4px; margin-bottom: 12px; overflow-x: auto; }
   .tab {
-    padding: 10px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
-    font-size: 0.82rem; font-weight: 600; white-space: nowrap;
+    padding: 10px 16px; border-radius: 10px 10px 0 0; cursor: pointer;
+    font-size: 0.82rem; font-weight: 600; white-space: nowrap; min-height: 44px;
     border: 1px solid var(--border); border-bottom: none;
     background: var(--surface); color: var(--text-dim); transition: all 0.2s; flex: 1; text-align: center;
   }
   .tab:hover { color: var(--text); }
-  .tab.active { color: var(--text); background: var(--surface2); border-color: var(--cyan); }
+  .tab.active { color: var(--text); background: var(--surface2); border-color: var(--cyan); box-shadow: inset 0 2px 0 var(--cyan); }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
@@ -100,10 +125,10 @@
   .col ul { list-style: none; }
   .col ul li { padding: 6px 0; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); }
   .col ul li:last-child { border: none; }
-  .col ul li::before { content: "\u2705"; flex-shrink: 0; }
-  .col.criticize ul li::before { content: "\u274c"; }
+  .col ul li::before { content: "\2705"; flex-shrink: 0; }
+  .col.criticize ul li::before { content: "\274c"; }
 
-  .source-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+  .source-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; min-height: 44px; }
   .source-item:last-child { border: none; }
   .source-item a { color: var(--cyan); text-decoration: none; }
   .source-item .count { color: var(--text-dim); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
@@ -127,36 +152,17 @@
   .summary-text { font-size: 0.92rem; line-height: 1.7; }
   .vibe-block { background: var(--surface2); border-radius: 8px; padding: 14px; margin: 8px 0; border-left: 3px solid var(--cyan); }
 
-  /* OTT comparison — ALWAYS horizontal */
-  .ott-compare-card { background: rgba(255,123,114,0.05); border: 1px solid rgba(255,123,114,0.2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-  .ott-compare-card .card-title { color: var(--ott); }
-  .rating-compare { display: flex; gap: 16px; align-items: center; flex-direction: row; }
-  .rating-box { text-align: center; padding: 12px; border-radius: 8px; flex: 1; min-width: 100px; }
-  .rating-box.theatre-box { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); }
-  .rating-box.ott-box { background: rgba(255,123,114,0.08); border: 1px solid rgba(255,123,114,0.2); }
-  .rating-box .label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.05em; }
-  .rating-box .value { font-size: 1.8rem; font-weight: 800; margin-top: 4px; }
-  .rating-box.theatre-box .value { color: var(--cyan); }
-  .rating-box.ott-box .value { color: var(--ott); }
-  .vs-badge { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); white-space: nowrap; }
-
-  /* OTT inline detail (inside the card, no tab) */
-  .ott-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,123,114,0.15); }
-  .ott-detail-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ott); margin-bottom: 8px; font-weight: 600; }
-  .ott-mood-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-
-  .footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.75rem; }
+  .footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.72rem; opacity: 0.7; }
 
   @media (max-width: 600px) {
     .container { padding: 12px; }
     .two-col { grid-template-columns: 1fr; }
     .rating-num { font-size: 2.2rem; }
     .tabs { flex-wrap: nowrap; }
-    .tab { font-size: 0.75rem; padding: 8px 10px; }
-    /* Keep OTT comparison horizontal even on mobile */
-    .rating-compare { flex-direction: row; }
-    .rating-box { padding: 8px; min-width: 80px; }
-    .rating-box .value { font-size: 1.4rem; }
+    .tab { font-size: 0.75rem; padding: 8px 10px; min-height: 44px; }
+    .lb-row { min-height: 44px; padding: 12px; }
+    .back { min-height: 44px; padding: 10px 16px; }
+    .theme-toggle { top: 12px; right: 12px; }
   }
 </style>
 </head>
@@ -165,21 +171,54 @@
   <div class="loading"><div class="spinner"></div><div>Loading...</div></div>
 </div>
 
-<script>
-// ─── Config ─────────────────────────────────────────────────────────
-const VPS_IP = "http://84.247.164.29:8080";
-let API_BASE = ""; // same origin when served from backend
-const API_KEY  = "__VITE_API_KEY__";
-const API_HEADERS = API_KEY && API_KEY.startsWith("__VITE") ? {} : { "X-API-Key": API_KEY };
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
 
-// Auto-discover tunnel URL (non-blocking, uses fallback if fails)
+<script>
+// ─── Theme ───────────────────────────────────────────────────────────
+function initTheme() {
+  const stored = localStorage.getItem('theme');
+  if (stored) {
+    document.documentElement.setAttribute('data-theme', stored);
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+  updateThemeButton();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeButton();
+}
+
+function updateThemeButton() {
+  const btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  btn.textContent = isDark ? '☀️' : '🌙';
+}
+
+initTheme();
+
+// ─── Config ─────────────────────────────────────────────────────────
+const VPS_IP = "__VITE_VPS_IP__";
+const TUNNEL_URL = "https://besides-irrigation-dynamic-girls.trycloudflare.com";
+// On HTTPS pages (Vercel), use the tunnel URL immediately (synchronous)
+// On HTTP pages (VPS direct), API_BASE stays "" for same-origin calls
+let API_BASE = window.location.protocol === 'https:' ? TUNNEL_URL : "";
+const API_KEY  = "__VITE_API_KEY__";
+const API_HEADERS = { "X-API-Key": API_KEY };
+
+// Auto-discover tunnel URL (non-blocking, updates API_BASE if found)
 (async function discoverTunnel() {
   try {
     const r = await fetch(`${VPS_IP}/api/tunnel-url`, { signal: AbortSignal.timeout(5000) });
     const data = await r.json();
     if (data.url) API_BASE = data.url;
   } catch(e) {
-    // mixed content or timeout — keep fallback
+    // mixed content from HTTPS page — fallback already set above
   }
 })();
 
@@ -188,6 +227,9 @@ function route() {
   if (hash.startsWith('#/film/')) {
     const film = decodeURIComponent(hash.replace('#/film/', ''));
     showFilm(film);
+  } else if (hash.startsWith('#/trailer/')) {
+    const film = decodeURIComponent(hash.replace('#/trailer/', ''));
+    showTrailerDetail(film);
   } else {
     showLeaderboard();
   }
@@ -209,26 +251,26 @@ function freqDot(f) {
   return map[f.toLowerCase()] || 'md';
 }
 
-// ─── Leaderboard + OTT (scroll-down) ────────────────────────────────
+// ─── Leaderboard ─────────────────────────────────────────────────────
 async function showLeaderboard() {
   document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading...</div></div>';
   try {
-    const [lbRes, nrRes, ottRes] = await Promise.all([
+    const [lbRes, nrRes, tlRes] = await Promise.all([
       fetch(`${API_BASE}/api/leaderboard`, { headers: API_HEADERS }),
       fetch(`${API_BASE}/api/new-releases`, { headers: API_HEADERS }),
-      fetch(`${API_BASE}/api/ott-watch`, { headers: API_HEADERS }),
+      fetch(`${API_BASE}/api/trailer-leaderboard`, { headers: API_HEADERS }),
     ]);
     const films = await lbRes.json();
     const newReleases = await nrRes.json();
-    const ottFilms = await ottRes.json();
-    renderDashboard(films, newReleases, ottFilms);
+    const trailers = await tlRes.json();
+    renderDashboard(films, newReleases, trailers);
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error-msg">⚠️ ${esc(e.message)}</div>`;
   }
 }
 
-function renderDashboard(films, newReleases, ottFilms) {
-  if ((!films || films.length === 0) && (!newReleases || newReleases.length === 0) && (!ottFilms || ottFilms.length === 0)) {
+function renderDashboard(films, newReleases, trailers) {
+  if ((!films || films.length === 0) && (!newReleases || newReleases.length === 0)) {
     document.getElementById('app').innerHTML = '<div class="error-msg">No films tracked yet.</div>';
     return;
   }
@@ -243,18 +285,21 @@ function renderDashboard(films, newReleases, ottFilms) {
   // ── SECTION 1: THEATRICAL LEADERBOARD ─────────────────────────
   html += `<div class="card" style="padding:8px">`;
   if (films && films.length > 0) {
+    html += `<div class="lb-header"><span class="lb-header-label">Rank</span><span></span><span class="lb-header-label" style="text-align:right">Score</span></div>`;
     films.forEach((f, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const buzz = f.buzz || '';
       const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
       const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
-      const genreHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join('');
+      const genreHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join(' ');
+      const releaseDateHtml = f.release_date ? `<div class="lb-release-date">${esc(f.release_date)}</div>` : '';
 
       html += `
         <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
           <div class="lb-rank ${rankClass}">${i + 1}</div>
           <div class="lb-info">
             <div class="lb-name">${esc(f.film)}</div>
+            ${releaseDateHtml}
             <div class="lb-meta">
               ${ratingHtml}
               ${buzzHtml}
@@ -282,6 +327,8 @@ function renderDashboard(films, newReleases, ottFilms) {
       const buzz = f.buzz || '';
       const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
       const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
+      const hypeHtml = `<span class="lb-tag" style="border-color:var(--accent);color:var(--accent)">🔥 ${f.hype_score || '—'}</span>`;
+      const vibeHtml = f.vibe ? `<span style="font-size:0.78rem;color:var(--text-dim);font-style:italic">${esc(f.vibe)}</span>` : '';
 
       html += `
         <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
@@ -291,9 +338,11 @@ function renderDashboard(films, newReleases, ottFilms) {
             <div class="lb-meta">
               ${ratingHtml}
               ${buzzHtml}
+              ${hypeHtml}
               <span>💬 ${f.total_comments || 0}</span>
               <span class="lb-tag" style="border-color:var(--accent);color:var(--accent)">NEW</span>
             </div>
+            ${vibeHtml}
           </div>
           <div class="lb-score">—</div>
         </div>
@@ -302,34 +351,34 @@ function renderDashboard(films, newReleases, ottFilms) {
     html += `</div>`;
   }
 
-  // ── SECTION 3: OTT RELEASE BOARD (matches leaderboard format) ──
-  if (ottFilms && ottFilms.length > 0) {
+  // ── SECTION 3: TRAILER LEADERBOARD ────────────────────────
+  if (trailers && trailers.length > 0) {
     html += `
-      <div class="section-divider"><span class="icon">📺</span> OTT Release Board <span class="icon">📺</span></div>
-      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Post-theatrical discussion — how the vibe shifts at home</p>
+      <div class="section-divider"><span class="icon">🎬</span> Upcoming — Trailer Hype <span class="icon">🎬</span></div>
+      <p style="font-size:0.82rem;color:var(--text-dim);margin:-8px 0 14px">Most anticipated Tamil films by trailer buzz</p>
       <div class="card" style="padding:8px">
     `;
-    ottFilms.forEach((f, i) => {
-      const buzz = f.ott_mood || '';
-      const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
-      const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
-      const theatreCompare = f.theatrical_rating ? `<span class="lb-tag" style="border-color:rgba(88,166,255,0.4);color:var(--cyan)">🎬 ${f.theatrical_rating}</span>` : '';
-      const ottDate = f.ott_release_date ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">📺 ${f.ott_release_date}</span>` : '';
+    html += `<div class="lb-header"><span class="lb-header-label">Rank</span><span></span><span class="lb-header-label" style="text-align:right">Hype</span></div>`;
+    trailers.forEach((t, i) => {
+      const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+      const viewsStr = t.total_views >= 1000000 ? `${(t.total_views/1000000).toFixed(1)}M` : t.total_views >= 1000 ? `${(t.total_views/1000).toFixed(0)}K` : t.total_views;
+      const sentimentEmoji = t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔';
+      const vibeHtml = t.vibe ? `<div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-top:2px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.vibe)}</div>` : '';
 
       html += `
-        <div class="lb-row" onclick="window.location.hash='#/film/${encodeURIComponent(f.film)}'">
-          <div class="lb-rank" style="color:var(--ott)">${i + 1}</div>
+        <div class="lb-row" onclick="window.location.hash='#/trailer/${encodeURIComponent(t.film)}'">
+          <div class="lb-rank ${rankClass}">${i + 1}</div>
           <div class="lb-info">
-            <div class="lb-name">${esc(f.film)}</div>
+            <div class="lb-name">${esc(t.film)}</div>
             <div class="lb-meta">
-              ${ratingHtml}
-              ${buzzHtml}
-              ${theatreCompare}
-              ${ottDate}
-              <span>💬 ${f.ott_comments || 0}</span>
+              <span style="color:var(--accent)">🔥 ${t.hype_score || 0}</span>
+              <span>👁 ${viewsStr}</span>
+              <span>${sentimentEmoji} ${t.sentiment || ''}</span>
+              <span class="lb-tag">${t.trailer_count || 1} trailer${(t.trailer_count || 1) > 1 ? 's' : ''}</span>
             </div>
+            ${vibeHtml}
           </div>
-          <div class="lb-score" style="color:var(--ott)">${f.ott_score || 0}</div>
+          <div class="lb-score" style="color:var(--accent)">${t.hype_score || 0}</div>
         </div>
       `;
     });
@@ -343,6 +392,7 @@ function renderDashboard(films, newReleases, ottFilms) {
     </div>`;
 
   document.getElementById('app').innerHTML = html;
+  updateThemeButton();
 }
 
 // ─── Film Detail ─────────────────────────────────────────────────────
@@ -363,9 +413,6 @@ function renderFilm(film, data) {
   const tab0 = a.tab_zero_spoiler || {};
   const tab1 = a.tab_mild_spoiler || {};
   const tab2 = a.tab_full_spoiler || {};
-  const ottAnalysis = data.ott_analysis || {};
-  const ottStatus = data.ott_status || {};
-  const hasOtt = ottStatus.has_ott_analysis && Object.keys(ottAnalysis).length > 0;
   const total = data.total_comments || 0;
   const videos = data.videos || [];
   const rating = a.rating || '—';
@@ -385,148 +432,27 @@ function renderFilm(film, data) {
     `<div class="source-item">
       <span>▶️</span>
       <a href="${esc(v.url)}" target="_blank">${esc(v.title || '')}</a>
-      ${v.is_ott ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">OTT</span>` : ''}
       <span class="count">${v.comment_count || 0} comments</span>
     </div>`
   ).join('');
 
-  const genreHtml = (a.genre || []).map(g => `<span>${esc(g)}</span>`).join('');
+  const genreHtml = (a.genre || []).map(g => `<span>${esc(g)}</span>`).join(' ');
 
   // Comparisons
   const comps = a.audience_engagement?.comparisons || [];
   const compHtml = comps.length ? comps.map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">🔗 ${esc(c)}</li>`).join('') : '';
 
-  // OTT analysis inline data
-  const ottSb = ottAnalysis.sentiment_breakdown || {};
-  const ottThemeHtml = (ottAnalysis.top_themes || []).map(t =>
-    `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`
-  ).join('');
-  const ottLovedHtml = (ottAnalysis.what_people_loved || []).map(l => `<li>${esc(l)}</li>`).join('');
-  const ottCritHtml = (ottAnalysis.what_people_criticized || []).map(c => `<li>${esc(c)}</li>`).join('');
-  const ottRating = ottAnalysis.rating || null;
-  const ottVibe = ottAnalysis.ott_vibe || {};
-  const ottTab0 = ottAnalysis.tab_zero_spoiler || {};
-
-  if (hasOtt) {
-    // ─── OTT MODE: Single scrollable view, no spoiler tabs ─────────
-    document.getElementById('app').innerHTML = `
-    <button class="back" onclick="window.location.hash='#/'">← Back</button>
-
-    <div class="header" style="padding-top:8px;border:none">
-      <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">📺 ${esc(film)}</h1>
-      <div class="sub" style="margin-top:8px">
-        <span style="color:var(--ott);font-weight:600;margin-right:8px">OTT Release</span>
-        ${ottStatus.ott_platform ? `<span class="lb-tag" style="border-color:var(--ott);color:var(--ott)">📺 ${esc(ottStatus.ott_platform)}</span>` : ''}
-        ${ottStatus.ott_release_date ? `<span class="lb-tag" style="border-color:rgba(255,123,114,0.3);color:var(--ott)">📅 ${ottStatus.ott_release_date}</span>` : ''}
-        <span style="color:var(--text-dim);margin-left:8px">💬 ${ottStatus.ott_comments || 0} OTT comments · ${videos.filter(v=>v.is_ott).length} OTT videos</span>
-      </div>
-    </div>
-
-    <!-- Theatrical vs OTT Comparison -->
-    <div class="ott-compare-card">
-      <div class="card-title">🎬 Theatrical vs 📺 OTT</div>
-      <div class="rating-compare">
-        <div class="rating-box theatre-box">
-          <div class="label">🎬 Theatrical</div>
-          <div class="value">${rating}</div>
-        </div>
-        <div class="vs-badge">VS</div>
-        <div class="rating-box ott-box">
-          <div class="label">📺 OTT</div>
-          <div class="value">${ottRating || '—'}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- OTT Mood -->
-    <div class="card">
-      <div class="card-title">📺 OTT Audience Mood</div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-        ${ottVibe.ott_mood ? `<span class="buzz-badge ${buzzClass(ottVibe.ott_mood)}">${esc(ottVibe.ott_mood)}</span>` : ''}
-        <span style="font-size:0.82rem;color:var(--text-dim)">From ${ottStatus.ott_comments || 0} OTT viewer comments</span>
-      </div>
-      ${ottVibe.how_it_differs ? `<div class="vibe-block" style="border-left-color:var(--ott)">${esc(ottVibe.how_it_differs)}</div>` : ''}
-      ${ottVibe.theatrical_vs_ott_verdict ? `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:10px"><strong>Verdict:</strong> ${esc(ottVibe.theatrical_vs_ott_verdict)}</p>` : ''}
-    </div>
-
-    <!-- OTT Sentiment -->
-    ${Object.keys(ottSb).length ? `
-    <div class="card">
-      <div class="card-title">📊 OTT Sentiment</div>
-      <div class="sentiment-bar">
-        <div class="seg pos" style="width:${ottSb.positive_percent || 0}%">${(ottSb.positive_percent || 0) > 8 ? (ottSb.positive_percent + '%') : ''}</div>
-        <div class="seg mix" style="width:${ottSb.mixed_percent || 0}%">${(ottSb.mixed_percent || 0) > 8 ? (ottSb.mixed_percent + '%') : ''}</div>
-        <div class="seg neg" style="width:${ottSb.negative_percent || 0}%">${(ottSb.negative_percent || 0) > 8 ? (ottSb.negative_percent + '%') : ''}</div>
-        <div class="seg neu" style="width:${ottSb.neutral_percent || 0}%"></div>
-      </div>
-      <div class="sentiment-labels">
-        <span class="pos">😊 ${ottSb.positive_percent || 0}%</span>
-        <span class="mix">🤔 ${ottSb.mixed_percent || 0}%</span>
-        <span class="neg">😠 ${ottSb.negative_percent || 0}%</span>
-        <span class="neu">😶 ${ottSb.neutral_percent || 0}%</span>
-      </div>
-    </div>` : ''}
-
-    <!-- OTT Rating -->
-    <div class="card">
-      <div class="card-title">⭐ OTT Rating</div>
-      <div class="rating-hero">
-        <div class="rating-num" style="color:var(--ott)">${ottRating || '—'}</div>
-        <div>
-          <div class="rating-stars" style="color:var(--ott)">${ottRating ? "★".repeat(Math.min(10, Math.floor(ottRating))) + "☆".repeat(Math.max(0, 10 - Math.floor(ottRating))) : ''}</div>
-          <div class="rating-label">From OTT YouTube comments</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- OTT Themes -->
-    ${ottThemeHtml ? `
-    <div class="card">
-      <div class="card-title">🔍 OTT Key Themes</div>
-      <div class="theme-pills">${ottThemeHtml}</div>
-    </div>` : ''}
-
-    <!-- OTT Loved / Criticized -->
-    ${ottLovedHtml || ottCritHtml ? `
-    <div class="card">
-      <div class="card-title">❤️ OTT Audience Says</div>
-      <div class="two-col">
-        ${ottLovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${ottLovedHtml}</ul></div>` : ''}
-        ${ottCritHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${ottCritHtml}</ul></div>` : ''}
-      </div>
-    </div>` : ''}
-
-    <!-- Theatrical reference -->
-    <div class="card" style="border-color:rgba(88,166,255,0.2)">
-      <div class="card-title" style="color:var(--cyan)">🎬 Theatrical Reference</div>
-      <p style="font-size:0.82rem;color:var(--text-dim)">Theatrical rating was <strong style="color:var(--cyan)">${rating}</strong> with <strong>${total}</strong> comments across ${videos.length} sources.</p>
-      ${ottTab0.vibe_summary ? `<div class="vibe-block" style="margin-top:8px;font-size:0.85rem">${esc(ottTab0.vibe_summary)}</div>` : ''}
-    </div>
-
-    <!-- OTT Sources -->
-    ${videoHtml ? `
-    <div class="card">
-      <div class="card-title">📺 OTT Sources</div>
-      ${videoHtml}
-    </div>` : ''}
-
-    <div class="footer">
-      Fetched: ${new Date(data.fetched_at || Date.now()).toLocaleString()}
-      · OTT analysis from YouTube + OpenRouter
-    </div>
-  `;
-  } else {
-    // ─── THEATRICAL MODE: 3-tier spoiler tabs ────────────────────
-    document.getElementById('app').innerHTML = `
+  // ─── THEATRICAL MODE: 3-tier spoiler tabs ────────────────────
+  document.getElementById('app').innerHTML = `
     <button class="back" onclick="window.location.hash='#/'">← Back</button>
 
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">🎬 ${esc(film)}</h1>
       <div class="sub" style="margin-top:8px">
+        ${data.cast ? `<span style="color:var(--text-dim)">🎭 ${esc(data.cast)}</span>` : ''}
         ${genreHtml}
         ${buzzHtml}
         <span style="color:var(--text-dim);margin-left:8px">💬 ${total} comments · ${videos.length} videos</span>
-        ${ottStatus.ott_release_date ? `<span class="lb-tag" style="margin-left:6px">📺 OTT: ${esc(ottStatus.ott_release_date)}</span>` : ''}
       </div>
     </div>
 
@@ -605,7 +531,7 @@ function renderFilm(film, data) {
 
       ${videoHtml ? `
       <div class="card">
-        <div class="card-title">📺 Sources ${ottStatus.ott_comments > 0 ? `<span style="color:var(--ott);font-weight:400">· ${ottStatus.ott_comments} OTT comments</span>` : ''}</div>
+        <div class="card-title">📺 Sources</div>
         ${videoHtml}
       </div>` : ''}
     </div>
@@ -642,8 +568,8 @@ function renderFilm(film, data) {
       <div class="card">
         <div class="card-title">⭐ What Audiences Felt</div>
         <ul style="list-style:none">
-          ${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">✅ ${esc(l)}</li>`).join('')}
-          ${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">❌ ${esc(c)}</li>`).join('')}
+          ${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(l)}</li>`).join('')}
+          ${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(c)}</li>`).join('')}
         </ul>
       </div>` : ''}
     </div>
@@ -684,7 +610,149 @@ function renderFilm(film, data) {
       · Built with YouTube Data API + OpenRouter
     </div>
   `;
-  }`;
+  updateThemeButton();
+}
+
+// ─── Trailer Detail ──────────────────────────────────────────────────
+async function showTrailerDetail(film) {
+  document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading trailer details...</div></div>';
+  try {
+    const r = await fetch(`${API_BASE}/api/trailer/${encodeURIComponent(film)}`, { headers: API_HEADERS });
+    if (!r.ok) throw new Error('Film not found');
+    const data = await r.json();
+    renderTrailerDetail(film, data);
+  } catch(e) {
+    document.getElementById('app').innerHTML = `<div class="error-msg">⚠️ ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTrailerDetail(film, data) {
+  const a = data.analysis || {};
+  const sb = a.sentiment_breakdown || {};
+  const tab0 = a.tab_zero_spoiler || {};
+  const total = data.total_comments || 0;
+  const viewsStr = data.total_views >= 1000000 ? `${(data.total_views/1000000).toFixed(1)}M` : data.total_views >= 1000 ? `${(data.total_views/1000).toFixed(0)}K` : data.total_views;
+  const likesStr = data.total_likes >= 1000000 ? `${(data.total_likes/1000000).toFixed(1)}M` : data.total_likes >= 1000 ? `${(data.total_likes/1000).toFixed(0)}K` : data.total_likes;
+
+  const sentimentEmoji = data.sentiment === 'positive' ? '😊' : data.sentiment === 'negative' ? '😠' : '🤔';
+  const buzz = tab0.audience_mood || data.sentiment || '';
+  const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
+
+  const videoHtml = (data.videos || []).map(v =>
+    `<div class="source-item">
+      <span>▶️</span>
+      <a href="${esc(v.url)}" target="_blank">Trailer</a>
+      <span class="count">${v.comment_count || 0} comments</span>
+    </div>`
+  ).join('');
+
+  const themeHtml = (a.top_themes || []).map(t =>
+    `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`
+  ).join('');
+
+  const lovedHtml = (a.what_people_loved || []).map(l => `<li>${esc(l)}</li>`).join('');
+  const critHtml = (a.what_people_criticized || []).map(c => `<li>${esc(c)}</li>`).join('');
+
+  document.getElementById('app').innerHTML = `
+    <button class="back" onclick="window.location.hash='#/'">← Back</button>
+
+    <div class="header" style="padding-top:8px;border:none">
+      <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">🎬 ${esc(film)}</h1>
+      <div class="sub" style="margin-top:8px">
+        ${data.cast ? `<span style="color:var(--text-dim)">🎭 ${esc(data.cast)}</span>` : ''}
+        ${data.release_date ? `<span class="lb-tag" style="margin-left:8px">📅 ${esc(data.release_date)}</span>` : ''}
+        ${data.wiki_url ? `<a href="${esc(data.wiki_url)}" target="_blank" style="margin-left:8px;color:var(--cyan);font-size:0.8rem">Wikipedia</a>` : ''}
+      </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="card">
+      <div class="card-title">📊 Trailer Stats</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--accent)">${data.hype_score || 0}</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Hype</div>
+        </div>
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--cyan)">${viewsStr}</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Views</div>
+        </div>
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--green)">${likesStr}</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Likes</div>
+        </div>
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--purple)">${data.like_ratio || 0}%</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Like Ratio</div>
+        </div>
+      </div>
+      ${data.vibe ? `<div class="vibe-block" style="margin-top:14px">${esc(data.vibe)}</div>` : ''}
+    </div>
+
+    <!-- Audience Vibe -->
+    ${tab0.vibe_summary ? `
+    <div class="card">
+      <div class="card-title">🎭 Audience Vibe</div>
+      <div class="vibe-block">${esc(tab0.vibe_summary)}</div>
+      ${tab0.audience_mood ? `<div style="margin-top:8px">Mood: ${buzzHtml}</div>` : ''}
+    </div>` : ''}
+
+    <!-- Sentiment -->
+    ${Object.keys(sb).length ? `
+    <div class="card">
+      <div class="card-title">📊 Sentiment</div>
+      <div class="sentiment-bar">
+        <div class="seg pos" style="width:${sb.positive_percent || 0}%">${(sb.positive_percent || 0) > 8 ? (sb.positive_percent + '%') : ''}</div>
+        <div class="seg mix" style="width:${sb.mixed_percent || 0}%">${(sb.mixed_percent || 0) > 8 ? (sb.mixed_percent + '%') : ''}</div>
+        <div class="seg neg" style="width:${sb.negative_percent || 0}%">${(sb.negative_percent || 0) > 8 ? (sb.negative_percent + '%') : ''}</div>
+        <div class="seg neu" style="width:${sb.neutral_percent || 0}%"></div>
+      </div>
+      <div class="sentiment-labels">
+        <span class="pos">😊 ${sb.positive_percent || 0}%</span>
+        <span class="mix">🤔 ${sb.mixed_percent || 0}%</span>
+        <span class="neg">😠 ${sb.negative_percent || 0}%</span>
+        <span class="neu">😶 ${sb.neutral_percent || 0}%</span>
+      </div>
+    </div>` : ''}
+
+    <!-- Rating -->
+    ${a.rating ? `
+    <div class="card">
+      <div class="card-title">⭐ Trailer Reaction Rating</div>
+      <div class="rating-hero">
+        <div class="rating-num">${a.rating}</div>
+        <div>
+          <div class="rating-stars">${"★".repeat(Math.min(10, Math.floor(a.rating))) + "☆".repeat(Math.max(0, 10 - Math.floor(a.rating)))}</div>
+          <div class="rating-label">From ${total} trailer comments</div>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <!-- Themes -->
+    ${themeHtml ? `<div class="card"><div class="card-title">🔍 Key Themes</div><div class="theme-pills">${themeHtml}</div></div>` : ''}
+
+    <!-- Loved / Criticized -->
+    ${lovedHtml || critHtml ? `
+    <div class="card">
+      <div class="card-title">❤️ What People Say</div>
+      <div class="two-col">
+        ${lovedHtml ? `<div class="col"><strong style="color:var(--green)">Loved</strong><ul>${lovedHtml}</ul></div>` : ''}
+        ${critHtml ? `<div class="col criticize"><strong style="color:var(--red)">Criticized</strong><ul>${critHtml}</ul></div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Sources -->
+    ${videoHtml ? `
+    <div class="card">
+      <div class="card-title">🎬 Trailers</div>
+      ${videoHtml}
+    </div>` : ''}
+
+    <div class="footer">
+      Trailer analysis from YouTube comments · ${data.trailer_count || 1} trailer${(data.trailer_count || 1) > 1 ? 's' : ''} found
+    </div>
+  `;
+  updateThemeButton();
 }
 
 // ─── Tab Switcher ───────────────────────────────────────────────────

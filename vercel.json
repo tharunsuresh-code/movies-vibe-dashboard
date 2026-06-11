@@ -1,5 +1,8 @@
 {
+  "buildCommand": "python3 -c \"import os; html=open('frontend.html').read(); html=html.replace('__VITE_API_KEY__',os.environ.get('VITE_API_KEY','')).replace('__VITE_VPS_IP__',os.environ.get('VITE_VPS_IP','')); open('index.html','w').write(html)\"",
   "outputDirectory": ".",
+  "framework": null,
+  "installCommand": "echo 'no install needed'",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

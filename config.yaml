@@ -1,0 +1,6 @@
+# Tamil Movie Review Dashboard - Config
+# API key loaded from .env file - keep it there, not in git!
+youtube_api_key: "${YOUTUBE_API_KEY}"
+output_dir: "./output"
+max_comments_per_video: 200
+max_videos: 5

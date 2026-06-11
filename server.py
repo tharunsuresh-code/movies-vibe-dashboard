@@ -25,7 +25,10 @@ YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 # ─── Auth Config ───────────────────────────────────────────────────────────
 # API_KEY must match what the frontend sends as X-API-Key header.
 # Loaded from env: set API_KEY on the VPS env, and VITE_API_KEY on Vercel.
-API_KEY = os.environ.get("API_KEY", "dev-key-change-in-prod")
+API_KEY = os.environ.get("API_KEY", "")
+if not API_KEY:
+    import logging
+    logging.warning("API_KEY not set — API routes are UNPROTECTED. Set API_KEY env var in production.")
 ALLOWED_ORIGINS = [
     "https://movies-vibe-dashboard.vercel.app",
     "https://movies-vibe-dashboard.vercel.app/*",
@@ -65,30 +68,18 @@ DEFAULT_FILMS = [
     "Kara",
 ]
 
-# ─── Film Metadata (release dates + OTT) ────────────────────
+# ─── Film Metadata (release dates) ──────────────────────────
 FILMS_META = {
-    "Parimala and Co":        {"release_date": "2026-06-05", "star": "Jayaram, Urvashi, Mysskin, Pandiraaj", "ott_release_date": None, "ott_platform": None},
-    "Blast":                  {"release_date": "2026-05-28", "star": "Arjun, Preity, Abhirami", "ott_release_date": None, "ott_platform": None},
-    "Karuppu":                {"release_date": "2026-05-15", "star": "Suriya, Trisha, RJ Balaji", "ott_release_date": None, "ott_platform": None},
-    "29":                     {"release_date": "2026-05-08", "star": "Vidhu, Preethi Asrani", "ott_release_date": None, "ott_platform": "Netflix"},
-    "Love Insurance Kompany": {"release_date": "2026-04-10", "star": "Pradeep Ranganathan, SJ Suryah, Krithi Shetty", "ott_release_date": "2026-05-06", "ott_platform": "Amazon Prime Video"},
-    "Mr. X":                  {"release_date": "2026-04-17", "star": "Arya, Gautham Ram Karthik", "ott_release_date": "2026-05-14", "ott_platform": "Disney+ Hotstar"},
-    "Battle":                 {"release_date": "2026-04-24", "star": "Arjun Prabhakaran, Aradhya Krishna", "ott_release_date": None, "ott_platform": None},
-    "Kara":                   {"release_date": "2026-04-30", "star": "Dhanush, Mamitha Baiju, Jayaram", "ott_release_date": None, "ott_platform": None},
-    "Retta Thala":            {"release_date": "2026-03-20", "star": "Arun Vijay, Siddhi", "ott_release_date": None, "ott_platform": None},
+    "Parimala and Co":        {"release_date": "2026-06-05", "star": "Jayaram, Urvashi, Mysskin, Pandiraaj"},
+    "Blast":                  {"release_date": "2026-05-28", "star": "Arjun, Preity, Abhirami"},
+    "Karuppu":                {"release_date": "2026-05-15", "star": "Suriya, Trisha, RJ Balaji"},
+    "29":                     {"release_date": "2026-05-08", "star": "Vidhu, Preethi Asrani"},
+    "Love Insurance Kompany": {"release_date": "2026-04-10", "star": "Pradeep Ranganathan, SJ Suryah, Krithi Shetty"},
+    "Mr. X":                  {"release_date": "2026-04-17", "star": "Arya, Gautham Ram Karthik"},
+    "Battle":                 {"release_date": "2026-04-24", "star": "Arjun Prabhakaran, Aradhya Krishna"},
+    "Kara":                   {"release_date": "2026-04-30", "star": "Dhanush, Mamitha Baiju, Jayaram"},
+    "Retta Thala":            {"release_date": "2026-03-20", "star": "Arun Vijay, Siddhi"},
 }
-
-# ─── OTT keyword detection ─────────────────────────────────────
-# Keywords that identify a video as OTT-focused (not theatrical)
-OTT_TITLE_KEYWORDS = [
-    "ott release", "ott review", "ott watch", "ott discussion",
-    "netflix review", "netflix release", "prime video review",
-    "streaming now", "digital release", "digital premiere",
-    "now streaming", "streaming review",
-    # Platform names in titles
-    "netflix", "prime video", "amazon prime", "disney+", "hotstar",
-    "aha tamil", "zee5", "sony liv",
-]
 
 def load_films() -> dict:
     """Load tracked films. Returns {film_name: {last_video_ids: [...], last_checked: iso}}"""
@@ -136,20 +127,29 @@ def get_openrouter_key() -> str:
 
 # ─── YouTube Search & Change Detection ────────────────────────────────────
 
-def is_ott_video(video: dict) -> bool:
-    """Check if a video is about OTT/post-theatrical discussion based on title."""
+def _is_relevant_video(video: dict, film: str) -> bool:
+    """Check if a video is actually about the specified film.
+    Handles short/numeric titles (e.g. '29') that cause false positives."""
     title = video.get("title", "").lower()
-    # Check title for OTT keywords (phrase matching, not bare substring)
-    for kw in OTT_TITLE_KEYWORDS:
-        if kw in title:
-            return True
-    return False
+    film_lower = film.lower()
+
+    if len(film_lower) <= 3:
+        # Short/numeric: require film name + context (movie/film/review/cast)
+        meta = FILMS_META.get(film, {})
+        cast_keywords = [k.strip() for k in meta.get("star", "").split(",") if k.strip()]
+        context_words = ["movie", "film", "review", "trailer", "teaser", "public review", "honest review"]
+
+        has_film = bool(re.search(r'\b' + re.escape(film_lower) + r'\b', title))
+        has_context = any(kw in title for kw in context_words)
+        has_cast = any(kw.lower() in title for kw in cast_keywords)
+
+        return has_film and (has_context or has_cast)
+
+    return film_lower in title
 
 
 def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[dict]:
-    """Search YouTube for review videos. Returns [{id, title, channel, published, is_ott}].
-    Runs separate search passes: theatrical reviews + OTT-specific content."""
-    # Phase 1: Theatrical review queries
+    """Search YouTube for review videos. Returns [{id, title, channel, published}]."""
     review_queries = [
         f"{film} movie review tamil",
         f"{film} review tamil",
@@ -158,19 +158,10 @@ def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[d
         f"{film} Baradwaj Rangan",
         f"{film} galatta plus",
     ]
-    # Phase 2: OTT-specific queries (run separately to guarantee OTT video coverage)
-    ott_queries = [
-        f"{film} OTT review tamil",
-        f"{film} ott watch review",
-        f"{film} netflix review tamil",
-        f"{film} OTT release",
-        f"{film} streaming now",
-    ]
 
-    seen = {}
+    seen: dict[str, dict] = {}
     skip_keywords = ["#shorts", "deleted scene", "collection", "24th day", "box office"]
 
-    # Run theatrical searches
     for q in review_queries:
         if len(seen) >= max_videos * 5:
             break
@@ -186,58 +177,136 @@ def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[d
                 if any(kw in title for kw in skip_keywords):
                     continue
                 if vid not in seen:
-                    v = {
+                    seen[vid] = {
                         "id": vid,
                         "title": item["snippet"]["title"],
                         "channel": item["snippet"]["channelTitle"],
                         "published": item["snippet"]["publishedAt"],
                     }
-                    v["is_ott"] = is_ott_video(v)
-                    seen[vid] = v
         except:
             continue
 
-    # Run OTT-specific searches (broader, keep announcements with platform names)
-    for q in ott_queries:
-        if len(seen) >= max_videos * 8:
+    result = list(seen.values())
+    # Filter out videos that aren't actually about this film (critical for short/numeric names)
+    result = [v for v in result if _is_relevant_video(v, film)]
+    return result[:max_videos]
+
+
+def search_trailer_videos(film: str, api_key: str, max_videos: int = 3) -> list[dict]:
+    """Search YouTube for official trailer/teaser videos for a film.
+    Returns [{id, title, channel, published}]."""
+    queries = [
+        f"{film} official trailer tamil",
+        f"{film} trailer tamil",
+        f"{film} teaser tamil",
+        f"{film} official teaser",
+    ]
+    seen: dict[str, dict] = {}
+    skip_keywords = ["review", "reaction", "behind the scenes", "interview", "#shorts"]
+
+    for q in queries:
+        if len(seen) >= max_videos * 4:
             break
         try:
             params = {"part": "snippet", "q": q, "type": "video", "maxResults": 10,
-                      "key": api_key, "order": "relevance"}
+                      "relevanceLanguage": "ta", "key": api_key, "order": "relevance"}
             resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=15)
             if resp.status_code != 200:
                 continue
             for item in resp.json().get("items", []):
                 vid = item["id"]["videoId"]
                 title = item["snippet"]["title"].lower()
-                published = item["snippet"]["publishedAt"]
-                # Skip very old content (pre-2025) and shorts
-                if any(kw in title for kw in ["#shorts", "deleted scene"]):
+                if any(kw in title for kw in skip_keywords):
                     continue
-                if published < "2025-01-01":
+                if "trailer" not in title and "teaser" not in title:
                     continue
                 if vid not in seen:
-                    v = {
+                    seen[vid] = {
                         "id": vid,
                         "title": item["snippet"]["title"],
                         "channel": item["snippet"]["channelTitle"],
-                        "published": published,
+                        "published": item["snippet"]["publishedAt"],
                     }
-                    v["is_ott"] = is_ott_video(v)
-                    seen[vid] = v
         except:
             continue
+    return list(seen.values())[:max_videos]
 
-    # Build result: theatrical priority, but always include OTT if available
-    all_videos = list(seen.values())
-    ott_vids = [v for v in all_videos if v["is_ott"]]
-    theatrical_vids = [v for v in all_videos if not v["is_ott"]]
 
-    # Ensure at least 1 OTT video if any found, up to 3
-    ott_count = min(len(ott_vids), 3)
-    theatre_count = min(len(theatrical_vids), max_videos - ott_count)
-    result = theatrical_vids[:theatre_count] + ott_vids[:ott_count]
-    return result[:max_videos]
+def fetch_video_stats(api_key: str, video_ids: list[str]) -> dict[str, dict]:
+    """Fetch view count and like count for video IDs via videos API.
+    Returns {video_id: {views: int, likes: int}}."""
+    stats: dict[str, dict] = {}
+    for i in range(0, len(video_ids), 50):
+        batch = video_ids[i:i+50]
+        try:
+            params = {"part": "statistics", "id": ",".join(batch), "key": api_key}
+            resp = httpx.get(f"{YOUTUBE_API_BASE}/videos", params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            for item in resp.json().get("items", []):
+                vid = item["id"]
+                stat = item.get("statistics", {})
+                stats[vid] = {
+                    "views": int(stat.get("viewCount", 0)),
+                    "likes": int(stat.get("likeCount", 0)),
+                }
+        except:
+            continue
+    return stats
+
+
+def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: str) -> dict:
+    """Compute hype score from trailer metrics + comment analysis.
+    Returns {hype_score: 0-100, views, likes, like_ratio, comment_count, sentiment, vibe}."""
+    import math as _math
+    total_views = sum(s.get("views", 0) for s in trailer_stats)
+    total_likes = sum(s.get("likes", 0) for s in trailer_stats)
+
+    view_score = min(30, round(_math.log10(max(1, total_views)) * 6))
+    like_ratio = total_likes / max(1, total_views) * 100
+    ratio_score = min(20, round(like_ratio * 2))
+
+    llm_score = 0
+    sentiment = "unknown"
+    vibe = ""
+    if comments and llm_key:
+        try:
+            prompt = f"""Analyze these YouTube comments about the upcoming Tamil film trailer.
+Output ONLY valid JSON:
+{{"sentiment": "<positive/mixed/negative>", "excitement_level": <0-100>, "vibe": "<one sentence on audience excitement>", "top_expectations": ["<thing>", "<thing>"]}}
+
+Comments:
+{chr(10).join(comments[:100])}"""
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {llm_key}", "Content-Type": "application/json"},
+                json={"model": "openai/gpt-chat-latest",
+                       "messages": [{"role": "user", "content": prompt}],
+                       "response_format": {"type": "json_object"},
+                       "max_tokens": 500, "temperature": 0.3},
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                result = resp.json()["choices"][0]["message"]["content"]
+                parsed = json.loads(result)
+                llm_score = min(30, round(parsed.get("excitement_level", 50) * 0.3))
+                sentiment = parsed.get("sentiment", "unknown")
+                vibe = parsed.get("vibe", "")
+        except:
+            pass
+
+    comment_score = min(20, round(_math.log10(max(1, len(comments))) * 8))
+    hype_score = min(100, view_score + ratio_score + llm_score + comment_score)
+
+    return {
+        "hype_score": hype_score,
+        "total_views": total_views,
+        "total_likes": total_likes,
+        "like_ratio": round(like_ratio, 1),
+        "comment_count": len(comments),
+        "sentiment": sentiment,
+        "vibe": vibe,
+    }
 
 
 def has_new_videos(film: str, videos: list[dict], registry: dict) -> bool:
@@ -316,422 +385,9 @@ Output ONLY valid JSON:
 Comments:
 {comments}"""
 
-OTT_ANALYSIS_PROMPT_TEMPLATE = """You are a Tamil cinema review analyst. Analyze these YouTube comments about the Tamil film "{film}".
 
-IMPORTANT CONTEXT: These comments are from POST-OTT release discussions — people watching the film on Netflix/Prime Video/Disney+ Hotstar AFTER its theatrical run. The vibe and expectations are often DIFFERENT from theatrical reactions.
-
-Comments are in Tamil, English, or Tanglish.
-
-Focus your analysis on catching the OTT-specific discourse:
-- How does the OTT audience's reaction DIFFER from theatrical audience?
-- Are people watching with family vs solo? Is the context different?
-- Do OTT viewers have a more balanced/critical take since they didn't pay for tickets?
-- Any comparisons between "theatre experience" and "home watch"?
-
-Output ONLY valid JSON:
-{{
-  "rating": <0-10, one decimal>,
-  "sentiment_breakdown": {{"positive_percent": N, "negative_percent": N, "mixed_percent": N, "neutral_percent": N}},
-  "genre": ["<genre 1>", "<genre 2>", "<genre 3>"],
-  "popularity_score": <0-100>,
-
-  "ott_vibe": {{
-    "ott_mood": "<one word: Rediscovered/LessHype/Mixed/FamilyFriendly/StillExciting/Disappointed>",
-    "how_it_differs": "<2-3 sentences on how the OTT discussion vibe differs from theatrical — is it more relaxed? More critical? Family watching? New disagreements?>",
-    "theatrical_vs_ott_verdict": "<one sentence: do OTT viewers agree with theatrical verdict, or is there a shift?>"
-  }},
-
-  "tab_zero_spoiler": {{
-    "vibe_summary": "<2 sentences on the overall audience vibe from OTT viewpoint>",
-    "audience_mood": "<one word>",
-    "performance_highlights": "<OTT audience takes on performances — any new appreciation?>",
-    "technical_highlights": "<OTT audience takes on craft, BGM, visuals from home-viewing perspective>"
-  }},
-
-  "tab_mild_spoiler": {{
-    "first_half_vibe": "<OTT audience take on first half — does it hold up on rewatch?>",
-    "second_half_vibe": "<OTT audience take on second half — does it feel different at home?>",
-    "why_watch_now": "<why should someone watch it on OTT right now, based on audience comments>"
-  }},
-
-  "top_themes": [{{"theme": "<theme>", "frequency": "very high/high/medium/low", "sentiment": "positive/negative/mixed"}}],
-  "what_people_loved": ["<thing>", "<thing>", "<thing>"],
-  "what_people_criticized": ["<thing>", "<thing>"]
-}}
-
-Comments:
-{comments}"""
-
-
-
-def scrape_wiki_ott_info(film: str) -> tuple[str | None, str | None]:
-    """Scrape Wikipedia article for OTT release date and platform.
-    Returns (ott_date, ott_platform) or (None, None).
-    Looks for 'Home media' section with streaming platform info."""
-    import re
-    import httpx
-    import urllib.parse
-    
-    titles = [
-        f"{film} (2026 film)",
-        f"{film} (2025 film)",
-        f"{film} (film)",
-        film,
-    ]
-    platform_keywords = {
-        "netflix": "Netflix",
-        "prime video": "Amazon Prime Video",
-        "amazon prime": "Amazon Prime Video",
-        "disney+": "Disney+ Hotstar",
-        "hotstar": "Disney+ Hotstar",
-        "aha": "Aha Tamil",
-        "zee5": "ZEE5",
-        "sony liv": "Sony LIV",
-    }
-    month_map = {"january":1,"february":2,"march":3,"april":4,"may":5,"june":6,
-                 "july":7,"august":8,"september":9,"october":10,"november":11,"december":12}
-    
-    for title in titles:
-        try:
-            escaped = urllib.parse.quote(title)
-            resp = httpx.get(
-                f"https://en.wikipedia.org/w/api.php?action=parse&page={escaped}&prop=text&format=json",
-                timeout=10,
-                headers={"User-Agent": "TamilMovieDashboard/1.0"}
-            )
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            if "error" in data:
-                continue
-            html = data.get("parse", {}).get("text", {}).get("*", "")
-            
-            # Find the Home media section
-            h3_start = html.find("id=\"Home_media\"")
-            if h3_start < 0:
-                h3_start = html.find("Home_media")
-            if h3_start < 0:
-                continue
-            
-            h3_close = html.find("</h3>", h3_start)
-            if h3_close < 0:
-                continue
-            
-            # Get all content until next section heading
-            remaining = html[h3_close:]
-            next_section = re.search(r'<(h[23]|div\s+class="mw-heading")', remaining)
-            section_html = remaining[:next_section.start()] if next_section else remaining[:2000]
-            
-            # Extract text from <p> tags
-            p_tags = re.findall(r'<p>(.*?)</p>', section_html, re.DOTALL)
-            section_text = " ".join(re.sub(r'<[^>]+>', '', p) for p in p_tags)
-            section_text = re.sub(r'\s+', ' ', section_text).strip()
-            
-            if not section_text:
-                continue
-            
-            # Detect platform
-            platform = None
-            for kw, plat in platform_keywords.items():
-                if kw in section_text.lower():
-                    platform = plat
-                    break
-            
-            # Detect date
-            date_match = re.search(
-                r"(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})",
-                section_text
-            )
-            ott_date = None
-            if date_match:
-                day = int(date_match.group(1))
-                month = month_map.get(date_match.group(2).lower(), 1)
-                year = date_match.group(3)
-                ott_date = f"{year}-{month:02d}-{day:02d}"
-            
-            if platform or ott_date:
-                return ott_date, platform
-        except:
-            continue
-    return None, None
-
-
-
-def fetch_video_details(video_ids: list[str], api_key: str) -> list[dict]:
-    """Fetch full snippet (incl. full description) for a batch of video IDs."""
-    if not video_ids:
-        return []
-    results = []
-    # Process in batches of 50 (YouTube API limit)
-    for i in range(0, len(video_ids), 50):
-        batch = video_ids[i:i+50]
-        try:
-            params = {"part": "snippet", "id": ",".join(batch), "key": api_key}
-            resp = httpx.get(f"{YOUTUBE_API_BASE}/videos", params=params, timeout=15)
-            if resp.status_code == 200:
-                for item in resp.json().get("items", []):
-                    snip = item.get("snippet", {})
-                    results.append({
-                        "id": item["id"],
-                        "title": snip.get("title", ""),
-                        "description": snip.get("description", ""),
-                        "published": snip.get("publishedAt", ""),
-                        "channel": snip.get("channelTitle", ""),
-                    })
-        except:
-            pass
-    return results
-
-
-PLATFORM_KEYWORDS = {
-    "netflix": "Netflix",
-    "prime video": "Amazon Prime Video",
-    "amazon prime": "Amazon Prime Video",
-    "disney+": "Disney+ Hotstar",
-    "hotstar": "Disney+ Hotstar",
-    "aha": "Aha Tamil",
-    "zee5": "ZEE5",
-    "sony liv": "Sony LIV",
-}
-
-MONTH_NAMES = {
-    "january": 1, "february": 2, "march": 3, "april": 4,
-    "may": 5, "june": 6, "july": 7, "august": 8,
-    "september": 9, "october": 10, "november": 11, "december": 12,
-}
-MONTH_ABBR = {m[:3]: v for m, v in MONTH_NAMES.items()}
-MONTH_LOOKUP = {**MONTH_NAMES, **MONTH_ABBR}
-
-DATE_PATTERNS = [
-    # ISO format: 2026-05-29
-    r"(\d{4})-(\d{1,2})-(\d{1,2})",
-    # "May 29, 2026" or "29 May 2026"
-    r"(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*,?\s*(202[456789])",
-    r"(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})\s*,?\s*(202[456789])",
-    # "releases on 29th" or "available from 29 May"
-    r"releas(?:es|ed)\s+(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b",
-    r"(?:available|streaming|coming|out)\s+(?:from|on|since)\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})",
-]
-
-def parse_date_match(m: re.Match) -> str | None:
-    """Convert a regex match from DATE_PATTERNS into YYYY-MM-DD string."""
-    try:
-        groups = m.groups()
-        # ISO format: (YYYY, MM, DD)
-        if len(groups) >= 3 and groups[0] and len(groups[0]) == 4:
-            y, mo, d = groups[0], groups[1].zfill(2), groups[2].zfill(2)
-            return f"{y}-{mo}-{d}"
-        # "29 may 2026" or "may 29, 2026"
-        if len(groups) >= 3:
-            if groups[0].isdigit():
-                day, month_name, year = groups[0], groups[1].lower(), groups[2]
-            else:
-                month_name, day, year = groups[0].lower(), groups[1], groups[2]
-            month_num = MONTH_LOOKUP.get(month_name, 1)
-            return f"{year}-{month_num:02d}-{int(day):02d}"
-        # "available from may 29" or "releases on 29 may"
-        if len(groups) == 2:
-            a, b = groups[0], groups[1]
-            if a.isdigit():
-                day, month_name = a, b.lower()
-            else:
-                day, month_name = b, a.lower()
-            month_num = MONTH_LOOKUP.get(month_name, 1)
-            # Use current year as default
-            year = str(datetime.now().year)
-            return f"{year}-{month_num:02d}-{int(day):02d}"
-    except:
-        pass
-    return None
-
-
-def extract_ott_info_llm(film: str, videos: list[dict], llm_key: str) -> tuple[str | None, str | None]:
-    """Use LLM to extract OTT release date and platform from OTT video titles+descriptions."""
-    if not llm_key or not videos:
-        return None, None
-
-    context = []
-    for v in videos[:6]:
-        desc_preview = v.get("description", "")[:500]
-        context.append(f"Title: {v['title']}\nPublished: {v.get('published', '')[:10]}\nDescription: {desc_preview}")
-
-    prompt = f"""You are analyzing YouTube videos about the Tamil film "{film}" to determine its OTT (streaming) release details.
-
-These videos are known to be about OTT/streaming release of this film.
-Based on their titles, descriptions, and publish dates, determine:
-
-1. Which OTT platform is it streaming on? (Netflix, Amazon Prime Video, Disney+ Hotstar, Aha Tamil, ZEE5, Sony LIV, or None)
-2. What is the OTT release date? (YYYY-MM-DD format, or None if unclear)
-
-Rules:
-- The OTT release date is usually when the film became available on the platform
-- Video publication dates are often close to or after the OTT release
-- If a video title/description says "now streaming" or "available now", the release date is around the video's publish date
-- Look for phrases like "releases on", "available from", "streaming from", "out on" in descriptions
-- The platform is often mentioned in the title or description
-
-Output ONLY valid JSON:
-{{"platform": "<platform or null>", "release_date": "<YYYY-MM-DD or null>", "confidence": "high/medium/low", "reasoning": "<brief explanation>"}}
-
-Videos:
-{chr(10).join(context)}"""
-
-    try:
-        resp = httpx.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {llm_key}", "Content-Type": "application/json"},
-            json={"model": "openai/gpt-chat-latest", "messages": [{"role": "user", "content": prompt}],
-                  "temperature": 0.1, "max_tokens": 500, "response_format": {"type": "json_object"}},
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            content = resp.json()["choices"][0]["message"]["content"]
-            content = re.sub(r"^```(?:json)?\s*", "", content)
-            content = re.sub(r"\s*```$", "", content)
-            result = json.loads(content)
-            platform = result.get("platform") or None
-            date = result.get("release_date") or None
-            # Validate date format
-            if date:
-                try:
-                    datetime.strptime(date, "%Y-%m-%d")
-                except:
-                    date = None
-            return date, platform
-    except:
-        pass
-    return None, None
-
-
-def detect_ott_release_date(film: str, api_key: str, videos: list[dict] | None = None, llm_key: str | None = None) -> tuple[str | None, str | None]:
-    """Robustly detect OTT release date and platform by searching YouTube + analyzing video details.
-    Returns (release_date, platform) tuple.
-
-    Strategy hierarchy:
-    1. Check video titles from search (fast regex)
-    2. Fetch full descriptions via videos API (more text to match)
-    3. If llm_key provided, use LLM to intelligently extract info
-    """
-    # Phase 1: Use provided OTT videos if available (no extra API call)
-    existing_videos = videos or []
-    for v in existing_videos:
-        title_desc = (v.get("title", "") + " " + (v.get("description", "")[:500])).lower()
-        platform = None
-        for kw, plat in PLATFORM_KEYWORDS.items():
-            if kw in title_desc:
-                platform = plat
-                break
-        if platform:
-            # Check for availability signals
-            if any(w in title_desc for w in ["available now", "streaming now", "now streaming", "out now", "released today"]):
-                return datetime.now().strftime("%Y-%m-%d"), platform
-
-    # Phase 2: Search YouTube with OTT queries
-    queries = [
-        f"{film} OTT release date tamil",
-        f"{film} ott release date",
-        f"{film} netflix release",
-        f"{film} streaming now",
-        f"{film} now streaming",
-        f"{film} digital release",
-        f"{film} OTT",
-    ]
-    all_video_ids = set()
-    title_hits = []  # (title, desc, platform, published)
-    for q in queries:
-        try:
-            params = {"part": "snippet", "q": q, "type": "video", "maxResults": 8,
-                      "key": api_key, "order": "relevance"}
-            resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=10)
-            if resp.status_code != 200:
-                continue
-            for item in resp.json().get("items", []):
-                vid = item["id"]["videoId"]
-                title = item["snippet"]["title"].lower()
-                desc = item["snippet"]["description"][:500].lower()
-                text = title + " " + desc
-
-                # Detect platform from title/desc snippet
-                platform = None
-                for kw, plat in PLATFORM_KEYWORDS.items():
-                    if kw in text:
-                        platform = plat
-                        break
-
-                # Check for immediate availability signals (strong signal → return immediately)
-                if any(w in text for w in ["available now", "streaming now", "now streaming", "out now", "released today"]):
-                    return datetime.now().strftime("%Y-%m-%d"), platform
-
-                all_video_ids.add(vid)
-                title_hits.append((title, desc, platform, item["snippet"]["publishedAt"]))
-        except:
-            continue
-
-    # Phase 3: Fetch full descriptions of found videos
-    full_videos = fetch_video_details(list(all_video_ids)[:20], api_key) if all_video_ids else []
-    all_found = []
-    for fv in full_videos:
-        title = fv["title"].lower()
-        desc = fv.get("description", "").lower()
-        text = title + " " + desc
-
-        platform = None
-        for kw, plat in PLATFORM_KEYWORDS.items():
-            if kw in text:
-                platform = plat
-                break
-
-        # Check availability signals again with full description
-        if any(w in text for w in ["available now", "streaming now", "now streaming", "out now", "released today"]):
-            return datetime.now().strftime("%Y-%m-%d"), platform
-
-        all_found.append({
-            "title": fv["title"],
-            "description": fv.get("description", ""),
-            "published": fv.get("published", ""),
-            "platform": platform,
-        })
-
-    # Phase 4: LLM analysis (most reliable — understands context, ignores false positives)
-    if llm_key and (all_found or title_hits):
-        llm_videos = all_found if all_found else [
-            {"title": t, "description": d, "published": p, "platform": plat}
-            for t, d, plat, p in title_hits[:8]
-        ]
-        llm_date, llm_platform = extract_ott_info_llm(film, llm_videos, llm_key)
-        if llm_date or llm_platform:
-            return llm_date, llm_platform
-
-    # Phase 5: Regex date extraction from full descriptions (less reliable, used as last resort)
-    for fv in full_videos:
-        text = (fv["title"] + " " + fv.get("description", "")).lower()
-        platform = None
-        for kw, plat in PLATFORM_KEYWORDS.items():
-            if kw in text:
-                platform = plat
-                break
-        for pat in DATE_PATTERNS:
-            m = re.search(pat, text)
-            if m:
-                date_str = parse_date_match(m)
-                if date_str:
-                    return date_str, platform
-
-    # Phase 6: Use earliest OTT video publish date as proxy
-    # If videos clearly mention a platform in their titles but have no explicit date,
-    # use the publish date of the earliest relevant video as an estimate
-    if all_found:
-        platform_videos = [v for v in all_found if v.get("platform")]
-        if platform_videos:
-            dates = [v["published"][:10] for v in platform_videos if v.get("published")]
-            if dates:
-                return min(dates), platform_videos[0]["platform"]
-
-    return None, None
-
-
-def run_llm_analysis(film: str, comments: list[str], api_key: str, ott_mode: bool = False) -> dict:
-    """Send comments to LLM and get full 3-tier analysis. ott_mode=True uses OTT-specific prompt."""
+def run_llm_analysis(film: str, comments: list[str], api_key: str) -> dict:
+    """Send comments to LLM and get full 3-tier analysis."""
     if not comments or not api_key:
         return {}
     sample = comments[:70]
@@ -739,8 +395,7 @@ def run_llm_analysis(film: str, comments: list[str], api_key: str, ott_mode: boo
         sample += random.sample(comments[70:], min(40, len(comments) - 70))
     random.shuffle(sample)
 
-    template = OTT_ANALYSIS_PROMPT_TEMPLATE if ott_mode else ANALYSIS_PROMPT_TEMPLATE
-    prompt = template.format(
+    prompt = ANALYSIS_PROMPT_TEMPLATE.format(
         film=film,
         comments="\n".join(f"{i+1}. {c}" for i, c in enumerate(sample))
     )
@@ -792,60 +447,36 @@ def process_film(film: str, force: bool = False) -> dict:
             return cached
         return {"error": "No new videos since last check", "_status": "nochange"}
 
-    # Step 3: Fetch comments from all videos, separated by OTT vs theatrical
+    # Step 3: Fetch comments from all videos
     all_comments = []
-    ott_comments = []
-    theatrical_comments = []
     for v in videos:
         try:
             comments = fetch_comments_api(api_key, v["id"], 100)
             v["comment_count"] = len(comments)
             all_comments.extend(comments)
-            if v.get("is_ott"):
-                ott_comments.extend(comments)
-            else:
-                theatrical_comments.extend(comments)
         except Exception:
             v["comment_count"] = 0
 
-    # Step 4: Run analysis — theatrical first, then OTT if we have enough
+    # Step 4: Run analysis
     analysis = run_llm_analysis(film, all_comments, llm_key)
-    ott_analysis = {}
-    if len(ott_comments) >= 10:
-        ott_analysis = run_llm_analysis(film, ott_comments, llm_key, ott_mode=True)
 
-    # Step 5: Detect OTT release date and platform
-    meta = FILMS_META.get(film, {})
-    ott_release_date = meta.get("ott_release_date", None)
-    ott_platform = meta.get("ott_platform", None)
-    
-    # Source 1: Wikipedia Home media section (most reliable)
-    if not ott_release_date and len(ott_comments) >= 5:
-        wiki_date, wiki_platform = scrape_wiki_ott_info(film)
-        if wiki_date or wiki_platform:
-            ott_release_date = wiki_date
-            ott_platform = wiki_platform
-            if film in FILMS_META:
-                if wiki_date: FILMS_META[film]["ott_release_date"] = wiki_date
-                if wiki_platform: FILMS_META[film]["ott_platform"] = wiki_platform
-    
-    # Source 2: YouTube keyword detection (fallback) — improved: passes OTT videos + LLM key for smart extraction
-    if not ott_release_date and len(ott_comments) >= 5:
-        detected_date, detected_platform = detect_ott_release_date(
-            film, api_key,
-            videos=[v for v in videos if v.get("is_ott")],
-            llm_key=llm_key,
-        )
-        if detected_date:
-            ott_release_date = detected_date
-            ott_platform = ott_platform or detected_platform
-            # Save back to FILMS_META (in-memory only for now)
-            if film in FILMS_META:
-                FILMS_META[film]["ott_release_date"] = detected_date
-                if detected_platform:
-                    FILMS_META[film]["ott_platform"] = detected_platform
+    # Step 4b: Hype scoring for upcoming/new films (trailer comments + views/likes)
+    hype = {}
+    try:
+        trailers = search_trailer_videos(film, api_key)
+        if trailers:
+            trailer_vid_ids = [t["id"] for t in trailers]
+            trailer_stats_map = fetch_video_stats(api_key, trailer_vid_ids)
+            trailer_comments = []
+            for t in trailers[:2]:  # Fetch comments from top 2 trailers
+                tc = fetch_comments_api(api_key, t["id"], 100)
+                trailer_comments.extend(tc)
+            trailer_stats_list = [trailer_stats_map.get(tid, {}) for tid in trailer_vid_ids]
+            hype = compute_hype_score(trailer_stats_list, trailer_comments, llm_key)
+    except:
+        pass
 
-    # Step 6: Build data payload
+    # Step 5: Build data payload
     # Spread popularity: LLM base (0-50) + log volume (0-30) + sentiment boost (0-20)
     llm_base = analysis.get("popularity_score", 50) * 0.5  # scale LLM to 0-50
     import math
@@ -855,34 +486,16 @@ def process_film(film: str, force: bool = False) -> dict:
     sent_bonus = min(20, round(pos_pct / 5))
     popularity_score = min(100, round(llm_base + vol_bonus + sent_bonus))
 
-    # OTT popularity
-    ott_score = 0
-    if ott_analysis:
-        ott_llm_base = ott_analysis.get("popularity_score", 50) * 0.5
-        ott_vol = min(30, round(math.log10(max(1, len(ott_comments))) * 12))
-        ott_sb = ott_analysis.get("sentiment_breakdown", {})
-        ott_pos = ott_sb.get("positive_percent", 50)
-        ott_sent = min(20, round(ott_pos / 5))
-        ott_score = min(100, round(ott_llm_base + ott_vol + ott_sent))
-
     data = {
         "film": film,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "total_comments": len(all_comments),
         "popularity_score": popularity_score,
-        "ott_status": {
-            "ott_comments": len(ott_comments),
-            "ott_release_date": ott_release_date,
-            "ott_platform": ott_platform,
-            "ott_score": ott_score,
-            "has_ott_analysis": bool(ott_analysis),
-        },
+        "hype": hype,
         "videos": [{"id": v["id"], "title": v["title"], "channel": v["channel"],
                      "url": f"https://youtube.com/watch?v={v['id']}",
-                     "comment_count": v.get("comment_count", 0),
-                     "is_ott": v.get("is_ott", False)} for v in videos],
+                     "comment_count": v.get("comment_count", 0)} for v in videos],
         "analysis": analysis,
-        "ott_analysis": ott_analysis,
         "_status": "fresh",
     }
 
@@ -890,27 +503,22 @@ def process_film(film: str, force: bool = False) -> dict:
     if len(all_comments) < 50 and "tab_zero_spoiler" in analysis:
         analysis["tab_zero_spoiler"]["audience_mood"] = "Muted"
 
-    # Step 7: Save
+    # Step 6: Save
     OUTPUT_DIR.mkdir(exist_ok=True)
     slug = film.lower().replace(" ", "-")
     with open(OUTPUT_DIR / f"{slug}-raw.json", "w") as f:
-        json.dump({"film": film, "videos": videos, "comments": all_comments,
-                   "ott_comments": ott_comments, "theatrical_comments": theatrical_comments},
+        json.dump({"film": film, "videos": videos, "comments": all_comments},
                   f, ensure_ascii=False, indent=2)
     with open(OUTPUT_DIR / f"{slug}-data.json", "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    # Step 8: Update registry
+    # Step 7: Update registry
     registry[film] = {
         "last_video_ids": [v["id"] for v in videos],
         "last_checked": datetime.now(timezone.utc).isoformat(),
         "added": entry.get("added", datetime.now(timezone.utc).isoformat()),
         "popularity_score": popularity_score,
         "total_comments": len(all_comments),
-        "ott_comments": len(ott_comments),
-        "ott_score": ott_score,
-        "ott_release_date": ott_release_date,
-        "ott_platform": ott_platform,
     }
     save_films(registry)
 
@@ -928,15 +536,6 @@ def load_film_data(film: str) -> dict:
         registry = load_films()
         entry = registry.get(film, {})
         data["popularity_score"] = data.get("popularity_score", entry.get("popularity_score", 50))
-        # Ensure ott_status exists from registry fallback
-        if "ott_status" not in data or not data["ott_status"]:
-            data["ott_status"] = {
-                "ott_comments": entry.get("ott_comments", 0),
-                "ott_release_date": entry.get("ott_release_date"),
-                "ott_platform": entry.get("ott_platform"),
-                "ott_score": entry.get("ott_score", 0),
-                "has_ott_analysis": bool(entry.get("ott_score", 0)),
-            }
         return data
     return process_film(film)
 
@@ -953,28 +552,25 @@ def smart_refresh():
 
 
 def get_recency_multiplier(release_date: str) -> float:
-    """2-month window. Films older than 2mo mostly excluded.
-    0-1 month: full weight → 1.0
-    1-2 months: mild decay → 0.65
-    2+ months: excluded (too old for leaderboard)
+    """30-day window. Films older than 30 days excluded (OTT drop).
+    0-30 days: full weight → 1.0
+    30+ days: excluded (assumed OTT release)
     """
     if not release_date:
         return 0.0
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime
         release = datetime.strptime(release_date, "%Y-%m-%d")
         now = datetime.now()
         days = (now - release).days
         if days <= 30: return 1.0
-        if days <= 60: return 0.65
         return 0.0
     except:
         return 0.0
 
 
 def get_leaderboard() -> list[dict]:
-    """Build leaderboard sorted by popularity with recency boost.
-    Excludes films with confirmed OTT releases (they belong on OTT board)."""
+    """Build leaderboard sorted by popularity with recency boost."""
     registry = load_films()
     board = []
     for film, entry in registry.items():
@@ -984,14 +580,6 @@ def get_leaderboard() -> list[dict]:
         sb = analysis.get("sentiment_breakdown", {})
         meta = FILMS_META.get(film, {})
         release = meta.get("release_date", "")
-
-        # Skip films with confirmed OTT release (they belong on OTT board)
-        # Check both metadata and analysis data
-        if meta.get("ott_release_date"):
-            continue
-        ott_status = data.get("ott_status", {})
-        if ott_status.get("has_ott_analysis") and ott_status.get("ott_release_date"):
-            continue
 
         multiplier = get_recency_multiplier(release)
         if multiplier == 0.0:
@@ -1042,6 +630,7 @@ def get_new_releases() -> list[dict]:
             hours_old = (datetime.now() - rd).total_seconds() / 3600
             # Only show in new releases if <48h old AND <50 comments (not enough data yet)
             if hours_old < 48 and total < 50:
+                hype = data.get("hype", {})
                 releases.append({
                     "film": film,
                     "release_date": release,
@@ -1050,6 +639,9 @@ def get_new_releases() -> list[dict]:
                     "total_comments": total,
                     "rating": analysis.get("rating"),
                     "buzz": analysis.get("tab_zero_spoiler", {}).get("audience_mood", ""),
+                    "hype_score": hype.get("hype_score", 0),
+                    "trailer_views": hype.get("total_views", 0),
+                    "vibe": hype.get("vibe", ""),
                 })
         except:
             pass
@@ -1057,55 +649,289 @@ def get_new_releases() -> list[dict]:
     return releases[:5]
 
 
-def get_ott_watch() -> list[dict]:
-    """Return films with confirmed OTT release date, retained for 30 days, top 10.
-    Includes films from FILMS_META even without OTT analysis (uses metadata fallback)."""
-    registry = load_films()
-    ott_list = []
-    now = datetime.now()
-    for film, entry in registry.items():
-        data = load_film_data(film)
-        ott_status = data.get("ott_status", {})
-        ott_analysis = data.get("ott_analysis", {})
-        meta = FILMS_META.get(film, {})
+# ─── Trailer Leaderboard ──────────────────────────────────────────────────
 
-        # Get confirmed OTT release date from metadata or stored data
-        ott_release_date = meta.get("ott_release_date") or ott_status.get("ott_release_date") or entry.get("ott_release_date")
-        if not ott_release_date:
-            continue
+def check_wiki_release_date(film_name: str) -> tuple[str | None, str | None, str | None]:
+    """Check Wikipedia for a film's release date and cast.
+    Returns (release_date, cast_string, wiki_url) or (None, None, None).
+    Generalized: works for any film name, caches results."""
+    import urllib.parse, re
 
-        # Retain for 30 days from OTT release
+    cache_path = OUTPUT_DIR / "wiki-cache.json"
+    cache = {}
+    if cache_path.exists():
         try:
-            rd = datetime.strptime(ott_release_date, "%Y-%m-%d")
-            days_old = (now - rd).days
+            with open(cache_path) as f:
+                cache = json.load(f)
+        except:
+            pass
+
+    # Check cache first
+    cache_key = film_name.lower().strip()
+    if cache_key in cache:
+        entry = cache[cache_key]
+        return entry.get("release_date"), entry.get("cast"), entry.get("url")
+
+    # Try multiple Wikipedia title patterns
+    title_patterns = [
+        f"{film_name} (2026 film)",
+        f"{film_name} (2025 film)",
+        f"{film_name} (film)",
+        film_name,
+    ]
+
+    for title in title_patterns:
+        try:
+            escaped = urllib.parse.quote(title)
+            resp = httpx.get(
+                f"https://en.wikipedia.org/w/api.php?action=parse&page={escaped}&prop=text&format=json",
+                timeout=10,
+                headers={"User-Agent": "TamilMovieDashboard/1.0"},
+            )
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            if "error" in data:
+                continue
+            html = data.get("parse", {}).get("text", {}).get("*", "")
+            wiki_url = f"https://en.wikipedia.org/wiki/{escaped}"
+
+            # Extract release date from infobox
+            release_date = None
+            # Look for "Release date" or "Opening" in infobox
+            date_patterns = [
+                r'(?:release\s+date|opening)\s*</th>\s*<td[^>]*>(.*?)</td>',
+                r'(?:release\s+date|opening)\s*</th>\s*<td[^>]*>\s*<[^>]*>(.*?)</',
+            ]
+            for pat in date_patterns:
+                m = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+                if m:
+                    date_text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+                    # Extract ISO date or structured date
+                    iso_m = re.search(r'(\d{4})-(\d{2})-(\d{2})', date_text)
+                    if iso_m:
+                        release_date = iso_m.group(0)
+                        break
+                    # Try "14 June 2026" format
+                    full_date = re.search(
+                        r'(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})',
+                        date_text, re.IGNORECASE
+                    )
+                    if full_date:
+                        month_map = {"january":1,"february":2,"march":3,"april":4,"may":5,"june":6,
+                                     "july":7,"august":8,"september":9,"october":10,"november":11,"december":12}
+                        d, m_name, y = full_date.group(1), full_date.group(2).lower(), full_date.group(3)
+                        release_date = f"{y}-{month_map[m_name]:02d}-{int(d):02d}"
+                        break
+
+            # Extract cast from infobox
+            cast = None
+            cast_m = re.search(r'(?:starring|cast)\s*</th>\s*<td[^>]*>(.*?)</td>', html, re.IGNORECASE | re.DOTALL)
+            if cast_m:
+                cast_text = re.sub(r'<[^>]+>', '', cast_m.group(1)).strip()
+                # Clean up: take first few names
+                names = [n.strip() for n in cast_text.split(',') if n.strip()]
+                cast = ', '.join(names[:5])
+
+            if release_date or cast:
+                # Cache the result
+                cache[cache_key] = {"release_date": release_date, "cast": cast, "url": wiki_url}
+                OUTPUT_DIR.mkdir(exist_ok=True)
+                with open(cache_path, "w") as f:
+                    json.dump(cache, f, ensure_ascii=False, indent=2)
+                return release_date, cast, wiki_url
         except:
             continue
-        if days_old > 30:
+
+    # Cache negative result too
+    cache[cache_key] = {"release_date": None, "cast": None, "url": None}
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+    return None, None, None
+
+
+def get_trailer_leaderboard() -> list[dict]:
+    """Search YouTube for upcoming Tamil movie trailers and rank by hype.
+    Returns films NOT yet released (release_date >= today) sorted by hype score.
+    Caches results for 6 hours to avoid excessive API calls."""
+    import math as _math
+    from datetime import datetime, timedelta
+
+    cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
+    # Cache for 6 hours
+    if cache_path.exists():
+        try:
+            with open(cache_path) as f:
+                cache = json.load(f)
+            cached_at = datetime.fromisoformat(cache.get("cached_at", "2000-01-01"))
+            if (datetime.now() - cached_at).total_seconds() < 6 * 3600:
+                return cache.get("trailers", [])
+        except:
+            pass
+
+    api_key = get_youtube_key()
+    llm_key = get_openrouter_key()
+    if not api_key:
+        return []
+
+    # Search for upcoming Tamil movie trailers
+    queries = [
+        "upcoming tamil movie trailer 2026",
+        "tamil movie trailer 2026",
+        "new tamil movie teaser 2026",
+        "tamil film official trailer",
+        "tollywood trailer 2026 tamil",
+    ]
+
+    seen_trailers: dict[str, dict] = {}  # film_name -> {id, title, channel, published}
+    skip_kw = ["review", "reaction", "behind the scenes", "interview", "#shorts", "box office", "collection"]
+
+    for q in queries:
+        if len(seen_trailers) >= 30:
+            break
+        try:
+            params = {"part": "snippet", "q": q, "type": "video", "maxResults": 10,
+                      "relevanceLanguage": "ta", "key": api_key, "order": "relevance"}
+            resp = httpx.get(f"{YOUTUBE_API_BASE}/search", params=params, timeout=15)
+            if resp.status_code != 200:
+                continue
+            for item in resp.json().get("items", []):
+                vid = item["id"]["videoId"]
+                title = item["snippet"]["title"].lower()
+                if any(kw in title for kw in skip_kw):
+                    continue
+                if "trailer" not in title and "teaser" not in title:
+                    continue
+                # Skip old content
+                published = item["snippet"]["publishedAt"]
+                if published < "2025-01-01":
+                    continue
+                if vid not in seen_trailers:
+                    seen_trailers[vid] = {
+                        "id": vid,
+                        "title": item["snippet"]["title"],
+                        "channel": item["snippet"]["channelTitle"],
+                        "published": published,
+                    }
+        except:
             continue
 
-        # Determine if we have analysis data or need metadata fallback
-        has_analysis = ott_status.get("has_ott_analysis") and bool(ott_analysis)
+    if not seen_trailers:
+        return []
 
-        ott_list.append({
-            "film": film,
-            "ott_release_date": ott_release_date,
-            "ott_platform": meta.get("ott_platform") or ott_status.get("ott_platform"),
-            "ott_score": ott_status.get("ott_score", 0) if has_analysis else 0,
-            "ott_comments": ott_status.get("ott_comments", 0),
-            "rating": ott_analysis.get("rating") if has_analysis else None,
-            "positive_pct": ott_analysis.get("sentiment_breakdown", {}).get("positive_percent") if has_analysis else None,
-            "ott_mood": ott_analysis.get("ott_vibe", {}).get("ott_mood", "") if has_analysis else "",
-            "how_it_differs": ott_analysis.get("ott_vibe", {}).get("how_it_differs", "") if has_analysis else "",
-            "theatrical_vs_ott": ott_analysis.get("ott_vibe", {}).get("theatrical_vs_ott_verdict", "") if has_analysis else "",
-            "theatrical_rating": data.get("analysis", {}).get("rating"),
-            "genre": ott_analysis.get("genre", [])[:2] if has_analysis else [],
-            "what_people_loved": ott_analysis.get("what_people_loved", [])[:3] if has_analysis else [],
-            "what_people_criticized": ott_analysis.get("what_people_criticized", [])[:2] if has_analysis else [],
-            "fetched_at": data.get("fetched_at") if has_analysis else None,
+    # Fetch stats for all trailers
+    all_ids = list(seen_trailers.keys())
+    stats_map = fetch_video_stats(api_key, all_ids)
+
+    # Fetch comments for top trailers (by views)
+    sorted_vids = sorted(all_ids, key=lambda v: stats_map.get(v, {}).get("views", 0), reverse=True)
+
+    # Group trailers by likely film name (extract from title)
+    # Simple heuristic: take the first few words before "trailer"/"teaser"
+    film_trailers: dict[str, list[dict]] = {}
+
+    def clean_film_name(raw: str) -> str:
+        """Clean film name extracted from YouTube title for Wikipedia lookup."""
+        name = raw.strip().rstrip("-–|·").strip()
+        # Remove common suffixes/prefixes from YouTube titles
+        remove_patterns = [
+            r'\(tamil\)', r'\(telugu\)', r'\(hindi\)', r'\(malayalam\)',
+            r'official', r'tamil', r'telugu', r'hindi', r'malayalam',
+            r'trailer', r'teaser', r'lyrical', r'song', r'video',
+            r'#\w+',  # hashtags
+        ]
+        for pat in remove_patterns:
+            name = re.sub(pat, '', name, flags=re.IGNORECASE)
+        name = re.sub(r'[-–|·]+', ' ', name)  # replace separators with spaces
+        name = re.sub(r'\s+', ' ', name).strip()
+        # Remove trailing years
+        name = re.sub(r'\s*\d{4}\s*$', '', name).strip()
+        return name if len(name) > 1 else raw[:40]
+
+    for vid in sorted_vids:
+        t = seen_trailers[vid]
+        title_lower = t["title"].lower()
+        # Extract film name: everything before "official trailer", "trailer", "teaser"
+        for marker in ["official trailer", "trailer", "teaser", "official teaser"]:
+            idx = title_lower.find(marker)
+            if idx > 0:
+                film_name = clean_film_name(t["title"][:idx])
+                break
+        else:
+            film_name = clean_film_name(t["title"][:40])
+
+        if not film_name:
+            film_name = t["title"][:40]
+
+        if film_name not in film_trailers:
+            film_trailers[film_name] = []
+        film_trailers[film_name].append({
+            "id": vid,
+            "stats": stats_map.get(vid, {}),
+            "title": t["title"],
+            "channel": t["channel"],
+            "published": t["published"],
         })
-    # Sort: films with analysis first (by score), then metadata-only
-    ott_list.sort(key=lambda x: (x.get("ott_score", 0) or 0, bool(x.get("rating"))), reverse=True)
-    return ott_list[:10]
+
+    # Compute hype for each film group
+    from datetime import datetime as _dt
+    results = []
+    for film_name, trailers in film_trailers.items():
+        # Skip if this film is already tracked in the registry (it's released)
+        registry = load_films()
+        if film_name in registry or film_name.lower() in [k.lower() for k in registry]:
+            continue
+
+        # Check Wikipedia for release date — skip if already released
+        wiki_release, wiki_cast, wiki_url = check_wiki_release_date(film_name)
+        if wiki_release:
+            try:
+                release = _dt.strptime(wiki_release, "%Y-%m-%d")
+                if release < _dt.now():
+                    continue  # Already released, skip from trailer board
+            except:
+                pass
+
+        trailer_stats = [t["stats"] for t in trailers]
+        total_views = sum(s.get("views", 0) for s in trailer_stats)
+        total_likes = sum(s.get("likes", 0) for s in trailer_stats)
+
+        # Fetch comments from top 2 trailers
+        trailer_comments = []
+        for t in trailers[:2]:
+            tc = fetch_comments_api(api_key, t["id"], 80)
+            trailer_comments.extend(tc)
+
+        # Compute hype
+        hype = compute_hype_score(trailer_stats, trailer_comments, llm_key)
+
+        results.append({
+            "film": film_name,
+            "hype_score": hype.get("hype_score", 0),
+            "total_views": total_views,
+            "total_likes": total_likes,
+            "like_ratio": hype.get("like_ratio", 0),
+            "comment_count": len(trailer_comments),
+            "sentiment": hype.get("sentiment", "unknown"),
+            "vibe": hype.get("vibe", ""),
+            "trailer_count": len(trailers),
+            "latest_trailer": trailers[0]["title"] if trailers else "",
+            "channel": trailers[0]["channel"] if trailers else "",
+            "cast": wiki_cast or "",
+            "release_date": wiki_release or "",
+            "wiki_url": wiki_url or "",
+            "trailer_ids": [t["id"] for t in trailers],
+        })
+
+    results.sort(key=lambda x: x.get("hype_score", 0), reverse=True)
+
+    # Cache results
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump({"cached_at": datetime.now().isoformat(), "trailers": results[:15]}, f, ensure_ascii=False, indent=2)
+
+    return results[:15]
 
 
 # ─── Wikipedia Weekly Release Scraper ────────────────────────────────────
@@ -1210,6 +1036,8 @@ async def api_root():
         with open(frontend_path) as f:
             html = f.read()
         html = html.replace("__VITE_API_KEY__", API_KEY)
+        vps_ip = os.environ.get("VPS_IP", "http://localhost:8080")
+        html = html.replace("__VITE_VPS_IP__", vps_ip)
         return HTMLResponse(content=html)
     return JSONResponse(content={"error": "Frontend not found"})
 
@@ -1223,16 +1051,82 @@ async def api_new_releases():
     data = get_new_releases()
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
-@app.get("/api/ott-watch")
-async def api_ott_watch():
-    data = get_ott_watch()
+@app.get("/api/trailer-leaderboard")
+async def api_trailer_leaderboard():
+    data = get_trailer_leaderboard()
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
+
+@app.get("/api/trailer/{film}")
+async def api_trailer_detail(film: str):
+    """Get detail data for a trailer leaderboard film."""
+    # Find film in cached trailer leaderboard
+    cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
+    if not cache_path.exists():
+        return JSONResponse(content={"error": "Trailer leaderboard not built yet"}, status_code=404)
+    with open(cache_path) as f:
+        cache = json.load(f)
+    
+    film_data = None
+    for t in cache.get("trailers", []):
+        if t["film"].lower() == film.lower():
+            film_data = t
+            break
+    
+    if not film_data:
+        return JSONResponse(content={"error": f"Film '{film}' not found in trailer leaderboard"}, status_code=404)
+    
+    # Fetch fresh comments and compute sentiment
+    api_key = get_youtube_key()
+    llm_key = get_openrouter_key()
+    trailer_ids = film_data.get("trailer_ids", [])
+    
+    all_comments = []
+    video_details = []
+    for vid in trailer_ids[:3]:
+        comments = fetch_comments_api(api_key, vid, 100)
+        all_comments.extend(comments)
+        video_details.append({
+            "id": vid,
+            "url": f"https://youtube.com/watch?v={vid}",
+            "comment_count": len(comments),
+        })
+    
+    # Run sentiment analysis on trailer comments
+    sentiment_data = {}
+    if all_comments and llm_key:
+        sentiment_data = run_llm_analysis(film, all_comments, llm_key)
+    
+    return JSONResponse(content={
+        "film": film,
+        "type": "trailer",
+        "hype_score": film_data.get("hype_score", 0),
+        "total_views": film_data.get("total_views", 0),
+        "total_likes": film_data.get("total_likes", 0),
+        "like_ratio": film_data.get("like_ratio", 0),
+        "sentiment": film_data.get("sentiment", "unknown"),
+        "vibe": film_data.get("vibe", ""),
+        "cast": film_data.get("cast", ""),
+        "release_date": film_data.get("release_date", ""),
+        "wiki_url": film_data.get("wiki_url", ""),
+        "trailer_count": film_data.get("trailer_count", 1),
+        "latest_trailer": film_data.get("latest_trailer", ""),
+        "channel": film_data.get("channel", ""),
+        "total_comments": len(all_comments),
+        "videos": video_details,
+        "analysis": sentiment_data,
+    }, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.get("/api/film/{film}")
 async def api_film(film: str):
     data = load_film_data(film)
     if "error" in data and data.get("_status") == "nochange":
         data = load_film_data(film)
+    # Enrich with cast from FILMS_META
+    meta = FILMS_META.get(film, {})
+    if meta.get("star"):
+        data["cast"] = meta["star"]
+    if meta.get("release_date"):
+        data["release_date"] = meta["release_date"]
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.post("/api/film/{film}/refresh")
