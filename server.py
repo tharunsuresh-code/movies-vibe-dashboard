@@ -338,6 +338,32 @@ def fetch_comments_api(api_key: str, video_id: str, max_comments: int = 200) -> 
         time.sleep(0.05)
     return comments[:max_comments]
 
+
+def fetch_new_comments(api_key: str, video_id: str, seen_ids: set, max_comments: int = 200) -> tuple[list[str], set]:
+    """Fetch comments and return only NEW ones (not in seen_ids).
+    Returns (new_comments, updated_seen_ids)."""
+    new_comments, token, seen = [], None, set(seen_ids)
+    while len(new_comments) < max_comments:
+        params = {"part": "snippet", "videoId": video_id, "maxResults": min(100, max_comments - len(new_comments)),
+                  "order": "time", "key": api_key}  # time order = newest first
+        if token: params["pageToken"] = token
+        resp = httpx.get(f"{YOUTUBE_API_BASE}/commentThreads", params=params, timeout=15)
+        if resp.status_code != 200: break
+        data = resp.json()
+        for item in data.get("items", []):
+            cid = item["id"]
+            if cid in seen:
+                return new_comments, seen  # Hit already-seen comment, stop
+            seen.add(cid)
+            text = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            text = re.sub(r"<[^>]+>", "", text).strip()
+            if len(text) > 5 and not re.search(r"dofy|norton|sponsor|subscribe", text, re.I):
+                new_comments.append(text)
+        token = data.get("nextPageToken")
+        if not token: break
+        time.sleep(0.05)
+    return new_comments, seen
+
 # ─── LLM Analysis (3-tier) ────────────────────────────────────────────────
 
 ANALYSIS_PROMPT_TEMPLATE = """You are a Tamil cinema review analyst. Analyze these YouTube comments about the Tamil film "{film}".
@@ -423,14 +449,87 @@ def run_llm_analysis(film: str, comments: list[str], api_key: str) -> dict:
         pass
     return {}
 
+
+MERGE_PROMPT = """You are updating an audience sentiment analysis for the Tamil film "{film}" based on NEW comments.
+The previous analysis was based on older comments. Now incorporate these new comments to update the analysis.
+
+Previous analysis:
+{previous}
+
+New comments ({count} new):
+{new_comments}
+
+Update the analysis JSON. Keep the same structure. Adjust:
+- sentiment_breakdown.positive_percent and negative_percent based on new comment sentiment
+- tab_zero_spoiler.audience_mood if the mood has shifted
+- top_themes: add any new themes, update frequencies
+- what_people_loved / what_people_criticized: add new points
+- rating: adjust slightly if sentiment shifted significantly
+- popularity_score: adjust based on new volume + sentiment
+
+Output ONLY valid JSON with the updated analysis. Include _comments_analyzed field with total count (old + new)."""
+
+
+def run_merge_analysis(film: str, existing_analysis: dict, new_comments: list[str], api_key: str) -> dict:
+    """Merge new comments into existing analysis. Only processes the delta."""
+    if not new_comments or not api_key:
+        return existing_analysis
+    # Sample new comments
+    sample = new_comments[:50]
+    if len(new_comments) > 50:
+        sample += random.sample(new_comments[50:], min(30, len(new_comments) - 50))
+    random.shuffle(sample)
+    # Summarize existing analysis for the prompt (keep it compact)
+    prev_summary = json.dumps({k: v for k, v in existing_analysis.items() if not k.startswith("_")}, indent=1)[:2000]
+    prompt = MERGE_PROMPT.format(
+        film=film, previous=prev_summary, count=len(sample),
+        new_comments="\n".join(f"{i+1}. {c}" for i, c in enumerate(sample))
+    )
+    try:
+        resp = httpx.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "openai/gpt-chat-latest", "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.3, "max_tokens": 4000, "response_format": {"type": "json_object"}},
+            timeout=120,
+        )
+        if resp.status_code == 200:
+            content = resp.json()["choices"][0]["message"]["content"]
+            content = content.strip()
+            content = re.sub(r"^```(?:json)?\s*", "", content)
+            content = re.sub(r"\s*```$", "", content)
+            start, end = content.find("{"), content.rfind("}")
+            if start >= 0 and end > start:
+                merged = json.loads(content[start:end + 1])
+                merged["_comments_analyzed"] = existing_analysis.get("_comments_analyzed", 0) + len(sample)
+                merged["_merge_update"] = True
+                return merged
+    except Exception:
+        pass
+    return existing_analysis
+
 # ─── Full Pipeline for a Single Film ──────────────────────────────────────
 
 def process_film(film: str, force: bool = False) -> dict:
-    """Full pipeline: search → detect new → fetch comments → LLM → save."""
+    """Full pipeline: search → detect new → fetch comments → LLM → save.
+    Supports incremental processing: only new comments are analyzed."""
     api_key = get_youtube_key()
     llm_key = get_openrouter_key()
     registry = load_films()
     entry = registry.get(film, {"last_video_ids": [], "last_checked": None, "added": datetime.now(timezone.utc).isoformat()})
+
+    # Load existing data for incremental processing
+    cache_path = OUTPUT_DIR / f"{film.lower().replace(' ','-')}-data.json"
+    existing_analysis = {}
+    seen_comment_ids = set()
+    if cache_path.exists():
+        try:
+            with open(cache_path) as f:
+                existing_data = json.load(f)
+            existing_analysis = existing_data.get("analysis", {})
+            seen_comment_ids = set(existing_data.get("processed_comment_ids", []))
+        except:
+            pass
 
     # Step 1: Search for review videos
     videos = search_review_videos(film, api_key)
@@ -438,28 +537,58 @@ def process_film(film: str, force: bool = False) -> dict:
         return {"error": f"No review videos found for {film}"}
 
     # Step 2: Check if anything new (unless forced)
-    if not force and not has_new_videos(film, videos, registry):
-        # Load cached data if exists
-        cache = OUTPUT_DIR / f"{film.lower().replace(' ','-')}-data.json"
-        if cache.exists():
-            with open(cache) as f:
-                cached = json.load(f)
-            cached["_status"] = "cached"
-            return cached
-        return {"error": "No new videos since last check", "_status": "nochange"}
+    # Even without new videos, we still check for new comments on existing videos
+    has_new_vids = has_new_videos(film, videos, registry)
+    if not force and not has_new_vids and seen_comment_ids:
+        # No new videos AND we already have processed comments — check for new comments
+        new_comments_total = []
+        updated_ids = set(seen_comment_ids)
+        for v in videos[:3]:  # Check top 3 videos for new comments
+            try:
+                new_comments, updated_ids = fetch_new_comments(api_key, v["id"], updated_ids, 80)
+                new_comments_total.extend(new_comments)
+                v["comment_count"] = len(new_comments)
+            except:
+                pass
+        if len(new_comments_total) < 15:
+            # Not enough new comments to warrant re-analysis
+            if cache_path.exists():
+                with open(cache_path) as f:
+                    cached = json.load(f)
+                cached["_status"] = "cached"
+                cached["_new_comments"] = len(new_comments_total)
+                return cached
+            return {"error": "No new videos or comments", "_status": "nochange"}
+        # Enough new comments — merge them
+        analysis = run_merge_analysis(film, existing_analysis, new_comments_total, llm_key)
+        seen_comment_ids = updated_ids
+        # Count total comments (existing + new)
+        total_comments = existing_analysis.get("_comments_analyzed", 0) + len(new_comments_total)
+    else:
+        # Full processing: new videos OR first-time
+        all_comments = []
+        updated_ids = set(seen_comment_ids)
+        for v in videos:
+            try:
+                if force or has_new_vids:
+                    # Full fetch for new/forced
+                    comments = fetch_comments_api(api_key, v["id"], 100)
+                else:
+                    # Incremental fetch for existing videos
+                    comments, updated_ids = fetch_new_comments(api_key, v["id"], updated_ids, 100)
+                v["comment_count"] = len(comments)
+                all_comments.extend(comments)
+            except Exception:
+                v["comment_count"] = 0
+        seen_comment_ids = updated_ids
+        total_comments = len(all_comments)
 
-    # Step 3: Fetch comments from all videos
-    all_comments = []
-    for v in videos:
-        try:
-            comments = fetch_comments_api(api_key, v["id"], 100)
-            v["comment_count"] = len(comments)
-            all_comments.extend(comments)
-        except Exception:
-            v["comment_count"] = 0
-
-    # Step 4: Run analysis
-    analysis = run_llm_analysis(film, all_comments, llm_key)
+        if existing_analysis and all_comments:
+            # Merge new comments into existing analysis
+            analysis = run_merge_analysis(film, existing_analysis, all_comments, llm_key)
+        else:
+            # First time — full analysis
+            analysis = run_llm_analysis(film, all_comments, llm_key)
 
     # Step 4b: Hype scoring for upcoming/new films (trailer comments + views/likes)
     hype = {}
@@ -490,13 +619,14 @@ def process_film(film: str, force: bool = False) -> dict:
     data = {
         "film": film,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "total_comments": len(all_comments),
+        "total_comments": total_comments if 'total_comments' in dir() else len(all_comments),
         "popularity_score": popularity_score,
         "hype": hype,
         "videos": [{"id": v["id"], "title": v["title"], "channel": v["channel"],
                      "url": f"https://youtube.com/watch?v={v['id']}",
                      "comment_count": v.get("comment_count", 0)} for v in videos],
         "analysis": analysis,
+        "processed_comment_ids": list(seen_comment_ids),
         "_status": "fresh",
     }
 

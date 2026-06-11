@@ -434,7 +434,7 @@ function renderFilm(film, data) {
     </div>`
   ).join('');
 
-  const genreHtml = (a.genre || []).map(g => `<span>${esc(g)}</span>`).join(' ');
+  const genreHtml = [...new Set((a.genre || []).filter(g => g !== 'Unknown'))].slice(0, 2).map(g => `<span style="color:var(--text-dim)">${esc(g)}</span>`).join(' · ');
 
   // Comparisons
   const comps = a.audience_engagement?.comparisons || [];
@@ -445,13 +445,13 @@ function renderFilm(film, data) {
     <button class="back" onclick="window.location.hash='#/'">← Back</button>
 
     <div class="header" style="padding-top:8px;border:none">
-      <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">🎬 ${esc(film)}</h1>
-      <div class="sub" style="margin-top:8px">
-        ${data.cast ? `<span style="color:var(--text-dim)">🎭 ${esc(data.cast)}</span>` : ''}
-        ${genreHtml}
-        ${buzzHtml}
-        <span style="color:var(--text-dim);margin-left:8px">💬 ${total} comments · ${videos.length} videos</span>
+      <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
+      ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
+        ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
+        ${genreHtml ? ` · ${genreHtml}` : ''}
       </div>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${videos.length} videos</div>
     </div>
 
     <div class="tabs">
@@ -655,12 +655,14 @@ function renderTrailerDetail(film, data) {
     <button class="back" onclick="window.location.hash='#/'">← Back</button>
 
     <div class="header" style="padding-top:8px;border:none">
-      <h1 style="font-size:1.5rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text)">🎬 ${esc(film)}</h1>
-      <div class="sub" style="margin-top:8px">
-        ${data.cast ? `<span style="color:var(--text-dim)">🎭 ${esc(data.cast)}</span>` : ''}
-        ${data.release_date ? `<span class="lb-tag" style="margin-left:8px">📅 ${esc(data.release_date)}</span>` : ''}
-        ${data.wiki_url ? `<a href="${esc(data.wiki_url)}" target="_blank" style="margin-left:8px;color:var(--cyan);font-size:0.8rem">Wikipedia</a>` : ''}
+      <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
+      ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
+        ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
+        ${data.release_date ? ` · 📅 ${esc(data.release_date)}` : ''}
+        ${data.wiki_url ? ` · <a href="${esc(data.wiki_url)}" target="_blank" style="color:var(--cyan)">Wikipedia</a>` : ''}
       </div>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${(data.videos || []).length} trailers</div>
     </div>
 
     <!-- Stats Card -->
