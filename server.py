@@ -910,6 +910,11 @@ def get_trailer_leaderboard() -> list[dict]:
         # Compute hype
         hype = compute_hype_score(trailer_stats, trailer_comments, llm_key)
 
+        # Run full sentiment analysis (pre-computed for detail page)
+        sentiment_data = {}
+        if trailer_comments and llm_key:
+            sentiment_data = run_llm_analysis(film_name, trailer_comments, llm_key)
+
         results.append({
             "film": film_name,
             "hype_score": hype.get("hype_score", 0),
@@ -926,6 +931,8 @@ def get_trailer_leaderboard() -> list[dict]:
             "release_date": wiki_release or "",
             "wiki_url": wiki_url or "",
             "trailer_ids": [t["id"] for t in trailers],
+            "videos": [{"id": t["id"], "url": f"https://youtube.com/watch?v={t['id']}", "title": t["title"], "comment_count": 0} for t in trailers],
+            "analysis": sentiment_data,
         })
 
     results.sort(key=lambda x: x.get("hype_score", 0), reverse=True)
@@ -1071,63 +1078,18 @@ async def api_refresh_trailer():
 
 @app.get("/api/trailer/{film}")
 async def api_trailer_detail(film: str):
-    """Get detail data for a trailer leaderboard film."""
-    # Find film in cached trailer leaderboard
+    """Get detail data for a trailer leaderboard film. Serves from cache only."""
     cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
     if not cache_path.exists():
         return JSONResponse(content={"error": "Trailer leaderboard not built yet"}, status_code=404)
     with open(cache_path) as f:
         cache = json.load(f)
     
-    film_data = None
     for t in cache.get("trailers", []):
         if t["film"].lower() == film.lower():
-            film_data = t
-            break
+            return JSONResponse(content=t, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
     
-    if not film_data:
-        return JSONResponse(content={"error": f"Film '{film}' not found in trailer leaderboard"}, status_code=404)
-    
-    # Fetch fresh comments and compute sentiment
-    api_key = get_youtube_key()
-    llm_key = get_openrouter_key()
-    trailer_ids = film_data.get("trailer_ids", [])
-    
-    all_comments = []
-    video_details = []
-    for vid in trailer_ids[:3]:
-        comments = fetch_comments_api(api_key, vid, 100)
-        all_comments.extend(comments)
-        video_details.append({
-            "id": vid,
-            "url": f"https://youtube.com/watch?v={vid}",
-            "comment_count": len(comments),
-        })
-    
-    # Run sentiment analysis on trailer comments
-    sentiment_data = {}
-    if all_comments and llm_key:
-        sentiment_data = run_llm_analysis(film, all_comments, llm_key)
-    
-    return JSONResponse(content={
-        "film": film,
-        "type": "trailer",
-        "hype_score": film_data.get("hype_score", 0),
-        "total_views": film_data.get("total_views", 0),
-        "total_likes": film_data.get("total_likes", 0),
-        "like_ratio": film_data.get("like_ratio", 0),
-        "sentiment": film_data.get("sentiment", "unknown"),
-        "vibe": film_data.get("vibe", ""),
-        "cast": film_data.get("cast", ""),
-        "release_date": film_data.get("release_date", ""),
-        "wiki_url": film_data.get("wiki_url", ""),
-        "trailer_count": film_data.get("trailer_count", 1),
-        "latest_trailer": film_data.get("latest_trailer", ""),
-        "channel": film_data.get("channel", ""),
-        "total_comments": len(all_comments),
-        "videos": video_details,
-        "analysis": sentiment_data,
-    }, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
+    return JSONResponse(content={"error": f"Film '{film}' not found in trailer leaderboard"}, status_code=404)
 
 @app.get("/api/film/{film}")
 async def api_film(film: str):
