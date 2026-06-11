@@ -330,6 +330,41 @@ def has_new_videos(film: str, videos: list[dict], registry: dict) -> bool:
     return bool(new_ids - old_ids)
 
 
+def short_mood_label(mood: str) -> str:
+    """Extract a 2-4 word label from a verbose audience_mood string."""
+    if not mood:
+        return ""
+    mood_lower = mood.lower()
+    # Map common phrases to short labels
+    label_map = [
+        ("celebratory", "Celebratory"),
+        ("blockbuster", "Blockbuster Vibes"),
+        ("explosive", "Explosive"),
+        ("divisive", "Divisive"),
+        ("polarizing", "Polarizing"),
+        ("disappointed", "Disappointed"),
+        ("underwhelming", "Underwhelming"),
+        ("mixed", "Mixed"),
+        ("tepid", "Tepid"),
+        ("muted", "Muted"),
+        ("positive", "Positive"),
+        ("negative", "Negative"),
+        ("excited", "Excited"),
+        ("cautiously", "Cautiously Optimistic"),
+        ("optimistic", "Optimistic"),
+        ("strongly positive", "Strongly Positive"),
+        ("moderately", "Moderate"),
+        ("boring", "Found Boring"),
+        ("average", "Average"),
+    ]
+    for key, label in label_map:
+        if key in mood_lower:
+            return label
+    # Fallback: take first 4 words
+    words = mood.split()[:4]
+    return " ".join(words) + ("…" if len(mood.split()) > 4 else "")
+
+
 def fetch_comments_api(api_key: str, video_id: str, max_comments: int = 200) -> list[str]:
     """Fetch comments via YouTube Data API."""
     comments, token = [], None
@@ -743,7 +778,7 @@ def get_leaderboard() -> list[dict]:
             "rating": analysis.get("rating"),
             "positive_pct": sb.get("positive_percent"),
             "genre": analysis.get("genre", [])[:2] or (meta.get("language", "") if isinstance(meta.get("language"), str) else ""),
-            "buzz": analysis.get("tab_zero_spoiler", {}).get("audience_mood", ""),
+            "buzz": short_mood_label(analysis.get("tab_zero_spoiler", {}).get("audience_mood", "")),
             "fetched_at": data.get("fetched_at", entry.get("last_checked")),
         })
     board.sort(key=lambda x: x.get("hotness_score", 0) or 0, reverse=True)
@@ -781,7 +816,7 @@ def get_new_releases() -> list[dict]:
                     "popularity_score": score,
                     "total_comments": total,
                     "rating": analysis.get("rating"),
-                    "buzz": analysis.get("tab_zero_spoiler", {}).get("audience_mood", ""),
+                    "buzz": short_mood_label(analysis.get("tab_zero_spoiler", {}).get("audience_mood", "")),
                     "hype_score": hype.get("hype_score", 0),
                     "trailer_views": hype.get("total_views", 0),
                     "vibe": hype.get("vibe", ""),
