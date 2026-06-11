@@ -42,10 +42,12 @@ Tamil dubbed versions of other language films are excluded from the trailer boar
 Detection: titles containing "tamil dubbed", "dubbed", "telugu to tamil", etc.
 
 ### Wikipedia Verification
-Trailer board films are verified against Wikipedia:
-- Release date check: skip if already released
+Trailer board films are verified against Wikipedia **before** fetching comments/LLM:
+- Release date check: skip if already released (saves API quota)
 - Cast extraction: shown on detail pages
+- Director extraction: `check_wiki_director()` parses "Directed by" from infobox
 - Film name lookup: tries "(2026 film)", "(2025 film)", "(film)" variants
+- Results cached in `output/wiki-cache.json`
 
 ### Popularity Score Formula
 - LLM base (0-50) + log-scaled volume bonus (0-30) + sentiment bonus (0-20) = 0-100
@@ -57,10 +59,19 @@ Trailer board films are verified against Wikipedia:
 ### Hype Score (Trailer-Based)
 For upcoming/new films, computes hype from trailer data:
 - View count (log scale, **0-45**) — views matter most
+- **View threshold bonus**: 500K+ views → +5, 1M+ views → +10
 - Like ratio percentage (0-15)
 - LLM sentiment analysis of trailer comments (0-25)
 - Comment volume (log scale, 0-15)
+- LLM returns `category` (Celebratory/Excited/Cautiously Optimistic/Mixed/Polarizing/etc.)
+- LLM returns `genre_phrase` (short 5-8 word genre description, avoids generic enthusiasm)
 - Stored in film data under `"hype"` key
+
+### Trailer Category Labels
+Instead of raw sentiment (positive/negative), the LLM classifies into richer categories:
+Celebratory, Excited, Cautiously Optimistic, Mixed, Polarizing, Disappointed, Surprised, Divisive, Anticipated, Muted.
+These are shown on trailer board rows with emoji badges.
+Genre phrase replaces generic "Audience is excited" with specific genre descriptions.
 
 ### Incremental Comment Processing
 The pipeline tracks `processed_comment_ids` per film. On refresh:

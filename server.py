@@ -270,11 +270,13 @@ def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: 
     llm_score = 0
     sentiment = "unknown"
     vibe = ""
+    category = "Anticipated"
+    genre_phrase = ""
     if comments and llm_key:
         try:
-            prompt = f"""Analyze these YouTube comments about the upcoming Tamil film trailer.
+            prompt = f"""Analyze these YouTube comments about the upcoming Tamil film "{film}" trailer.
 Output ONLY valid JSON:
-{{"sentiment": "<positive/mixed/negative>", "excitement_level": <0-100>, "vibe": "<one sentence on audience excitement>", "top_expectations": ["<thing>", "<thing>"]}}
+{{"sentiment": "<positive/mixed/negative>", "excitement_level": <0-100>, "category": "<one of: Celebratory/Excited/Cautiously Optimistic/Mixed/Polarizing/Disappointed/Surprised/Divisive/Anticipated/Muted>", "genre_phrase": "<short 5-8 word phrase describing the film's genre and tone, e.g. 'Intense action thriller with emotional core' or 'Light-hearted family comedy with heart' — avoid generic words like exciting/anticipate/hype>", "vibe": "<1-2 sentence insight on audience expectations and reaction — vary your language, do NOT start with 'Audience is highly' or 'Viewers are excited' — be specific to what comments actually say>", "top_expectations": ["<thing>", "<thing>"]}}
 
 Comments:
 {chr(10).join(comments[:100])}"""
@@ -293,11 +295,19 @@ Comments:
                 llm_score = min(25, round(parsed.get("excitement_level", 50) * 0.25))
                 sentiment = parsed.get("sentiment", "unknown")
                 vibe = parsed.get("vibe", "")
+                category = parsed.get("category", "Anticipated")
+                genre_phrase = parsed.get("genre_phrase", "")
         except:
             pass
 
     comment_score = min(15, round(_math.log10(max(1, len(comments))) * 6))
     hype_score = min(100, view_score + ratio_score + llm_score + comment_score)
+
+    # Threshold bonus: big-view trailers get a boost
+    if total_views >= 1_000_000:
+        hype_score = min(100, hype_score + 10)
+    elif total_views >= 500_000:
+        hype_score = min(100, hype_score + 5)
 
     return {
         "hype_score": hype_score,
@@ -307,6 +317,8 @@ Comments:
         "comment_count": len(comments),
         "sentiment": sentiment,
         "vibe": vibe,
+        "category": category,
+        "genre_phrase": genre_phrase,
     }
 
 
@@ -882,6 +894,64 @@ def check_wiki_release_date(film_name: str) -> tuple[str | None, str | None, str
     return None, None, None
 
 
+def check_wiki_director(film_name: str) -> str | None:
+    """Extract director from Wikipedia infobox. Uses same cache as release date."""
+    import urllib.parse
+    cache_path = OUTPUT_DIR / "wiki-cache.json"
+    cache = {}
+    if cache_path.exists():
+        try:
+            with open(cache_path) as f:
+                cache = json.load(f)
+        except:
+            pass
+    cache_key = film_name.lower().strip()
+    entry = cache.get(cache_key, {})
+    if "director" in entry:
+        return entry.get("director")
+
+    title_patterns = [
+        f"{film_name} (2026 film)",
+        f"{film_name} (2025 film)",
+        f"{film_name} (film)",
+        film_name,
+    ]
+    for title in title_patterns:
+        try:
+            escaped = urllib.parse.quote(title)
+            resp = httpx.get(
+                f"https://en.wikipedia.org/w/api.php?action=parse&page={escaped}&prop=text&format=json",
+                timeout=10,
+                headers={"User-Agent": "TamilMovieDashboard/1.0"},
+            )
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            if "error" in data:
+                continue
+            html = data.get("parse", {}).get("text", {}).get("*", "")
+            dir_m = re.search(r'(?:directed\s+by|director)\s*</th>\s*<td[^>]*>(.*?)</td>', html, re.IGNORECASE | re.DOTALL)
+            if dir_m:
+                dir_text = re.sub(r'<[^>]+>', '', dir_m.group(1)).strip()
+                names = [n.strip() for n in dir_text.split(',') if n.strip()]
+                director = ', '.join(names[:3])
+                entry["director"] = director
+                cache[cache_key] = entry
+                OUTPUT_DIR.mkdir(exist_ok=True)
+                with open(cache_path, "w") as f:
+                    json.dump(cache, f, ensure_ascii=False, indent=2)
+                return director
+        except:
+            continue
+
+    entry["director"] = None
+    cache[cache_key] = entry
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+    return None
+
+
 def get_trailer_leaderboard() -> list[dict]:
     """Search YouTube for upcoming Tamil movie trailers and rank by hype.
     Returns films NOT yet released (release_date >= today) sorted by hype score.
@@ -1017,8 +1087,9 @@ def get_trailer_leaderboard() -> list[dict]:
         if film_name in registry or film_name.lower() in [k.lower() for k in registry]:
             continue
 
-        # Check Wikipedia for release date — skip if already released
+        # Check Wikipedia FIRST — skip released films before wasting API quota
         wiki_release, wiki_cast, wiki_url = check_wiki_release_date(film_name)
+        wiki_director = check_wiki_director(film_name)
         if wiki_release:
             try:
                 release = _dt.strptime(wiki_release, "%Y-%m-%d")
@@ -1027,6 +1098,7 @@ def get_trailer_leaderboard() -> list[dict]:
             except:
                 pass
 
+        # NOW fetch comments and run LLM (only for unreleased films)
         trailer_stats = [t["stats"] for t in trailers]
         total_views = sum(s.get("views", 0) for s in trailer_stats)
         total_likes = sum(s.get("likes", 0) for s in trailer_stats)
@@ -1054,10 +1126,13 @@ def get_trailer_leaderboard() -> list[dict]:
             "comment_count": len(trailer_comments),
             "sentiment": hype.get("sentiment", "unknown"),
             "vibe": hype.get("vibe", ""),
+            "category": hype.get("category", "Anticipated"),
+            "genre_phrase": hype.get("genre_phrase", ""),
             "trailer_count": len(trailers),
             "latest_trailer": trailers[0]["title"] if trailers else "",
             "channel": trailers[0]["channel"] if trailers else "",
             "cast": wiki_cast or "",
+            "director": wiki_director or "",
             "release_date": wiki_release or "",
             "wiki_url": wiki_url or "",
             "trailer_ids": [t["id"] for t in trailers],
@@ -1232,6 +1307,9 @@ async def api_film(film: str):
         data["cast"] = meta["star"]
     if meta.get("release_date"):
         data["release_date"] = meta["release_date"]
+    # Try to get director from wiki cache
+    if not data.get("director"):
+        data["director"] = check_wiki_director(film) or ""
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.post("/api/film/{film}/refresh")

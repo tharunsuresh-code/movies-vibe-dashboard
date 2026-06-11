@@ -242,7 +242,9 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, functi
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
 
 function buzzClass(level) {
-  const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low','muted':'muted'};
+  const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low','muted':'muted',
+    'celebratory':'explosive','excited':'very-high','cautiously optimistic':'high','mixed':'medium',
+    'polarizing':'high','disappointed':'low','surprised':'high','divisive':'medium','anticipated':'medium'};
   return 'buzz-' + (map[String(level).toLowerCase()] || 'medium');
 }
 
@@ -362,8 +364,9 @@ function renderDashboard(films, newReleases, trailers) {
     trailers.forEach((t, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const viewsStr = t.total_views >= 1000000 ? `${(t.total_views/1000000).toFixed(1)}M` : t.total_views >= 1000 ? `${(t.total_views/1000).toFixed(0)}K` : t.total_views;
-      const sentimentEmoji = t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔';
-      const vibeHtml = t.vibe ? `<div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-top:2px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.vibe)}</div>` : '';
+      const category = t.category || t.sentiment || 'Anticipated';
+      const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '🎬';
+      const genreHtml = t.genre_phrase ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.genre_phrase)}</div>` : '';
 
       html += `
         <div class="lb-row" onclick="window.location.hash='#/trailer/${encodeURIComponent(t.film)}'">
@@ -371,10 +374,10 @@ function renderDashboard(films, newReleases, trailers) {
           <div class="lb-info">
             <div class="lb-name">${esc(t.film)}</div>
             <div class="lb-meta">
-              <span>${sentimentEmoji} ${t.sentiment || 'unknown'}</span>
+              <span class="lb-tag">${catEmoji} ${esc(category)}</span>
               <span>👁 ${viewsStr}</span>
             </div>
-            ${vibeHtml}
+            ${genreHtml}
           </div>
           <div class="lb-score" style="color:var(--accent)">${t.hype_score || 0}</div>
         </div>
@@ -449,6 +452,8 @@ function renderFilm(film, data) {
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
         ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
+        ${data.director ? ` · 🎬 ${esc(data.director)}` : ''}
+        ${data.release_date ? ` · 📅 ${esc(data.release_date)}` : ''}
         ${genreHtml ? ` · ${genreHtml}` : ''}
       </div>
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${videos.length} videos</div>
@@ -633,7 +638,9 @@ function renderTrailerDetail(film, data) {
   const likesStr = data.total_likes >= 1000000 ? `${(data.total_likes/1000000).toFixed(1)}M` : data.total_likes >= 1000 ? `${(data.total_likes/1000).toFixed(0)}K` : data.total_likes;
 
   const sentimentEmoji = data.sentiment === 'positive' ? '😊' : data.sentiment === 'negative' ? '😠' : '🤔';
-  const buzz = tab0.audience_mood || data.sentiment || '';
+  const category = data.category || data.sentiment || 'Anticipated';
+  const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '🎬';
+  const buzz = tab0.audience_mood || category;
   const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
 
   const videoHtml = (data.videos || []).map(v =>
@@ -656,9 +663,11 @@ function renderTrailerDetail(film, data) {
 
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
+      ${data.genre_phrase ? `<div style="font-size:0.88rem;color:var(--text-dim);font-style:italic;margin:4px 0">${esc(data.genre_phrase)}</div>` : ''}
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
         ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
+        ${data.director ? ` · 🎬 ${esc(data.director)}` : ''}
         ${data.release_date ? ` · 📅 ${esc(data.release_date)}` : ''}
         ${data.wiki_url ? ` · <a href="${esc(data.wiki_url)}" target="_blank" style="color:var(--cyan)">Wikipedia</a>` : ''}
       </div>
