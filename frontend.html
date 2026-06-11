@@ -371,10 +371,8 @@ function renderDashboard(films, newReleases, trailers) {
           <div class="lb-info">
             <div class="lb-name">${esc(t.film)}</div>
             <div class="lb-meta">
-              <span style="color:var(--accent)">🔥 ${t.hype_score || 0}</span>
+              <span>${sentimentEmoji} ${t.sentiment || 'unknown'}</span>
               <span>👁 ${viewsStr}</span>
-              <span>${sentimentEmoji} ${t.sentiment || ''}</span>
-              <span class="lb-tag">${t.trailer_count || 1} trailer${(t.trailer_count || 1) > 1 ? 's' : ''}</span>
             </div>
             ${vibeHtml}
           </div>
@@ -641,7 +639,7 @@ function renderTrailerDetail(film, data) {
   const videoHtml = (data.videos || []).map(v =>
     `<div class="source-item">
       <span>▶️</span>
-      <a href="${esc(v.url)}" target="_blank">Trailer</a>
+      <a href="${esc(v.url)}" target="_blank">${esc(v.title || 'Trailer')}</a>
       <span class="count">${v.comment_count || 0} comments</span>
     </div>`
   ).join('');

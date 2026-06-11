@@ -262,9 +262,10 @@ def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: 
     total_views = sum(s.get("views", 0) for s in trailer_stats)
     total_likes = sum(s.get("likes", 0) for s in trailer_stats)
 
-    view_score = min(30, round(_math.log10(max(1, total_views)) * 6))
+    # Views matter most for hype — log-scale with generous cap
+    view_score = min(45, round(_math.log10(max(1, total_views)) * 9))
     like_ratio = total_likes / max(1, total_views) * 100
-    ratio_score = min(20, round(like_ratio * 2))
+    ratio_score = min(15, round(like_ratio * 1.5))
 
     llm_score = 0
     sentiment = "unknown"
@@ -289,13 +290,13 @@ Comments:
             if resp.status_code == 200:
                 result = resp.json()["choices"][0]["message"]["content"]
                 parsed = json.loads(result)
-                llm_score = min(30, round(parsed.get("excitement_level", 50) * 0.3))
+                llm_score = min(25, round(parsed.get("excitement_level", 50) * 0.25))
                 sentiment = parsed.get("sentiment", "unknown")
                 vibe = parsed.get("vibe", "")
         except:
             pass
 
-    comment_score = min(20, round(_math.log10(max(1, len(comments))) * 8))
+    comment_score = min(15, round(_math.log10(max(1, len(comments))) * 6))
     hype_score = min(100, view_score + ratio_score + llm_score + comment_score)
 
     return {
@@ -786,6 +787,7 @@ def get_trailer_leaderboard() -> list[dict]:
 
     seen_trailers: dict[str, dict] = {}  # film_name -> {id, title, channel, published}
     skip_kw = ["review", "reaction", "behind the scenes", "interview", "#shorts", "box office", "collection"]
+    dubbed_kw = ["tamil dubbed", "dubbed in tamil", "dubbed", "telugu to tamil", "hindi to tamil", "malayalam to tamil", " kannada to tamil"]
 
     for q in queries:
         if len(seen_trailers) >= 30:
@@ -801,6 +803,8 @@ def get_trailer_leaderboard() -> list[dict]:
                 title = item["snippet"]["title"].lower()
                 if any(kw in title for kw in skip_kw):
                     continue
+                if any(kw in title for kw in dubbed_kw):
+                    continue  # Skip dubbed versions of other language films
                 if "trailer" not in title and "teaser" not in title:
                     continue
                 # Skip old content
@@ -1055,6 +1059,15 @@ async def api_new_releases():
 async def api_trailer_leaderboard():
     data = get_trailer_leaderboard()
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
+
+@app.post("/api/refresh-trailer")
+async def api_refresh_trailer():
+    """Force refresh trailer leaderboard cache. Call from cron."""
+    cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
+    if cache_path.exists():
+        cache_path.unlink()
+    data = get_trailer_leaderboard()
+    return JSONResponse(content={"status": "ok", "count": len(data)})
 
 @app.get("/api/trailer/{film}")
 async def api_trailer_detail(film: str):
