@@ -98,17 +98,23 @@ This generalizes well around release dates — lots of new comments → frequent
 ## Cron Jobs
 
 ### Trailer Board Refresh
-- **Schedule**: Daily at 8 AM UTC (midnight Pacific)
+- **Schedule**: Daily at 8 AM UTC
 - **Endpoint**: `POST /api/refresh-trailer`
 - **Cost**: ~37 units/day
 
-### Theatrical Board Refresh
-- **Schedule**: Every 6h starting IST midnight (18:30, 00:30, 06:30, 12:30 UTC)
-- **Endpoint**: `POST /api/refresh`
-- **Cost**: ~22 units per run × 4/day = ~88 units/day
-- Around release days: captures fresh audience feedback every 6h
+### Theatrical Board Refresh (Daily)
+- **Schedule**: Daily at 6 AM UTC
+- **Logic**: Checks if any film is within 3 days of release → full refresh. Otherwise lightweight check.
+- **Endpoint**: `POST /api/refresh` (only if near release)
+- **Cost**: ~0-22 units/day (skipped when no film near release)
 
-### Total Daily Quota: ~125 units (~1.25% of 10K budget)
+### Release Date Proximity Check (6h)
+- **Schedule**: Every 6h (00:00, 06:00, 12:00, 18:00 UTC)
+- **Logic**: Only triggers full pipeline refresh if any film is within ±3 days of its release date
+- **Cost**: ~22 units per trigger (only when a film is releasing)
+- **Saves quota**: Most runs return "no near release" with zero API calls
+
+### Total Daily Quota: ~60-125 units (~0.6-1.25% of 10K budget)
 
 ## Known Issues
 
