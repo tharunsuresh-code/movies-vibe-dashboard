@@ -365,7 +365,7 @@ function renderDashboard(films, newReleases, trailers) {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const viewsStr = t.total_views >= 1000000 ? `${(t.total_views/1000000).toFixed(1)}M` : t.total_views >= 1000 ? `${(t.total_views/1000).toFixed(0)}K` : t.total_views;
       const category = t.category || t.sentiment || 'Anticipated';
-      const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '🎬';
+      const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '';
       const genreHtml = t.genre_phrase ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.genre_phrase)}</div>` : '';
 
       html += `
