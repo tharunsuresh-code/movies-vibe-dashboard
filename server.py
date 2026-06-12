@@ -1253,6 +1253,7 @@ def get_trailer_leaderboard() -> list[dict]:
             "total_views": total_views,
             "total_likes": total_likes,
             "like_ratio": hype.get("like_ratio", 0),
+            "total_comments": len(trailer_comments),
             "comment_count": len(trailer_comments),
             "sentiment": hype.get("sentiment", "unknown"),
             "vibe": hype.get("vibe", ""),
