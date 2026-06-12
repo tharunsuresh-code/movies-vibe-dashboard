@@ -272,11 +272,13 @@ def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: 
     vibe = ""
     category = "Anticipated"
     genre_phrase = ""
+    rating_label = ""
+    tagline = ""
     if comments and llm_key:
         try:
             prompt = f"""Analyze these YouTube comments about the upcoming Tamil film "{film}" trailer.
 Output ONLY valid JSON:
-{{"sentiment": "<positive/mixed/negative>", "excitement_level": <0-100>, "category": "<one of: Celebratory/Excited/Cautiously Optimistic/Mixed/Polarizing/Disappointed/Surprised/Divisive/Anticipated/Muted>", "genre_phrase": "<short 5-8 word phrase describing the film's genre and tone, e.g. 'Intense action thriller with emotional core' or 'Light-hearted family comedy with heart' — avoid generic words like exciting/anticipate/hype>", "vibe": "<1-2 sentence insight on audience expectations and reaction — vary your language, do NOT start with 'Audience is highly' or 'Viewers are excited' — be specific to what comments actually say>", "top_expectations": ["<thing>", "<thing>"]}}
+{{"sentiment": "<positive/mixed/negative>", "excitement_level": <0-100>, "category": "<one of: Celebratory/Excited/Cautiously Optimistic/Mixed/Polarizing/Disappointed/Surprised/Divisive/Anticipated/Muted>", "rating_label": "<2-4 word expressive mood label capturing overall audience feeling, e.g. 'Mind Blowing', 'Average Buzz', 'Mass Hype', 'Solid Expectations', 'Underwhelming', 'Mixed Bag' — vary per film, be specific to what comments say, NOT generic>", "tagline": "<2-3 word genre/tone summary inferred from title and comments, e.g. 'Action Thriller', 'Family Drama', 'Mass Entertainer', 'Romantic Comedy', 'Psychological Thriller'>", "genre_phrase": "<short 5-8 word phrase describing the film's genre and tone, e.g. 'Intense action thriller with emotional core' or 'Light-hearted family comedy with heart' — avoid generic words like exciting/anticipate/hype>", "vibe": "<1-2 sentence insight on audience expectations and reaction — vary your language, do NOT start with 'Audience is highly' or 'Viewers are excited' — be specific to what comments actually say>", "top_expectations": ["<thing>", "<thing>"]}}
 
 Comments:
 {chr(10).join(comments[:100])}"""
@@ -286,7 +288,7 @@ Comments:
                 json={"model": "openai/gpt-chat-latest",
                        "messages": [{"role": "user", "content": prompt}],
                        "response_format": {"type": "json_object"},
-                       "max_tokens": 500, "temperature": 0.3},
+                       "max_tokens": 600, "temperature": 0.3},
                 timeout=30,
             )
             if resp.status_code == 200:
@@ -297,6 +299,8 @@ Comments:
                 vibe = parsed.get("vibe", "")
                 category = parsed.get("category", "Anticipated")
                 genre_phrase = parsed.get("genre_phrase", "")
+                rating_label = parsed.get("rating_label", "")
+                tagline = parsed.get("tagline", "")
         except:
             pass
 
@@ -319,6 +323,8 @@ Comments:
         "vibe": vibe,
         "category": category,
         "genre_phrase": genre_phrase,
+        "rating_label": rating_label,
+        "tagline": tagline,
     }
 
 
@@ -1193,6 +1199,8 @@ def get_trailer_leaderboard() -> list[dict]:
             "vibe": hype.get("vibe", ""),
             "category": hype.get("category", "Anticipated"),
             "genre_phrase": hype.get("genre_phrase", ""),
+            "rating_label": hype.get("rating_label", ""),
+            "tagline": hype.get("tagline", ""),
             "trailer_count": len(trailers),
             "latest_trailer": trailers[0]["title"] if trailers else "",
             "channel": trailers[0]["channel"] if trailers else "",

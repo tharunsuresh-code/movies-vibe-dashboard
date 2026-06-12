@@ -244,7 +244,24 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, functi
 function buzzClass(level) {
   const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low','muted':'muted',
     'celebratory':'explosive','excited':'very-high','cautiously optimistic':'high','mixed':'medium',
-    'polarizing':'high','disappointed':'low','surprised':'high','divisive':'medium','anticipated':'medium'};
+    'polarizing':'high','disappointed':'low','surprised':'high','divisive':'medium','anticipated':'medium',
+    'mind blowing':'explosive','mind-blowing':'explosive','mass hype':'explosive','mass':'explosive',
+    'raving':'explosive','blockbuster':'explosive','explosive':'explosive','electric':'explosive',
+    'ecstatic':'explosive','thrilled':'explosive','outstanding':'explosive','fantastic':'explosive',
+    'brilliant':'explosive','stunning':'explosive','masterful':'explosive','superb':'explosive',
+    'audience favorite':'explosive','joyful':'explosive','heartwarming':'explosive',
+    'high expectations':'very-high','highly praised':'very-high','impressive':'very-high',
+    'solid expectations':'very-high','solid':'very-high','outstanding reception':'very-high',
+    'gripping':'very-high','intense':'very-high','refreshing':'very-high',
+    'well received':'high','positive buzz':'high','strongly positive':'high','enthusiastic':'high',
+    'appreciated':'high','good buzz':'high','optimistic':'high','excitement':'high','hype':'high',
+    'cautiously optimistic':'high','optimistic outlook':'high','fairly good':'high',
+    'mixed bag':'medium','average buzz':'medium','decent':'medium',
+    'passable':'medium','moderate':'medium','mediocre':'medium','so-so':'medium',
+    'underwhelming':'low','disappointing':'low','tepid reception':'low','found boring':'low',
+    'muted response':'low','poor reception':'low','below average':'low','lukewarm':'low',
+    'lackluster':'low','poor':'low',
+    'muted':'muted','no buzz':'muted'};
   return 'buzz-' + (map[String(level).toLowerCase()] || 'medium');
 }
 
@@ -366,15 +383,18 @@ function renderDashboard(films, newReleases, trailers) {
       const viewsStr = t.total_views >= 1000000 ? `${(t.total_views/1000000).toFixed(1)}M` : t.total_views >= 1000 ? `${(t.total_views/1000).toFixed(0)}K` : t.total_views;
       const category = t.category || t.sentiment || 'Anticipated';
       const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '';
-      const genreHtml = t.genre_phrase ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.genre_phrase)}</div>` : '';
+      const ratingLabel = t.rating_label || category;
+      const taglineHtml = t.tagline ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px;font-style:italic">${esc(t.tagline)}</div>` : '';
+      const genreHtml = t.genre_phrase ? `<div style="font-size:0.73rem;color:var(--text-dim);margin-top:1px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.genre_phrase)}</div>` : '';
 
       html += `
         <div class="lb-row" onclick="window.location.hash='#/trailer/${encodeURIComponent(t.film)}'">
           <div class="lb-rank ${rankClass}">${i + 1}</div>
           <div class="lb-info">
             <div class="lb-name">${esc(t.film)}</div>
+            ${taglineHtml}
             <div class="lb-meta">
-              <span class="buzz-badge ${buzzClass(category)}">${catEmoji} ${esc(category)}</span>
+              <span class="buzz-badge ${buzzClass(ratingLabel)}">${esc(ratingLabel)}</span>
               <span>👁 ${viewsStr}</span>
             </div>
             ${genreHtml}
@@ -640,7 +660,8 @@ function renderTrailerDetail(film, data) {
   const sentimentEmoji = data.sentiment === 'positive' ? '😊' : data.sentiment === 'negative' ? '😠' : '🤔';
   const category = data.category || data.sentiment || 'Anticipated';
   const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '🎬';
-  const buzz = tab0.audience_mood || category;
+  const ratingLabel = data.rating_label || category;
+  const buzz = tab0.audience_mood || ratingLabel;
   const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
 
   const videoHtml = (data.videos || []).map(v =>
@@ -663,7 +684,8 @@ function renderTrailerDetail(film, data) {
 
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
-      ${data.genre_phrase ? `<div style="font-size:0.88rem;color:var(--text-dim);font-style:italic;margin:4px 0">${esc(data.genre_phrase)}</div>` : ''}
+      ${data.tagline ? `<div style="font-size:0.85rem;color:var(--text-dim);margin:2px 0;font-weight:500">${esc(data.tagline)}</div>` : ''}
+      ${data.genre_phrase ? `<div style="font-size:0.82rem;color:var(--text-dim);font-style:italic;margin:2px 0">${esc(data.genre_phrase)}</div>` : ''}
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
         ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
