@@ -483,7 +483,7 @@ Output ONLY valid JSON:
 
   "audience_engagement": {{
     "theatre_response": "<one sentence>",
-    "comparisons": ["<comparison 1>", "<comparison 2>"]
+    "comparisons": ["<ONLY if commenters themselves compare this film to another film/director/style — extract their exact comparison. DO NOT list hero's filmography or director's previous films unless commenters explicitly mention them>", "<another commenter-driven comparison, same rules>"]
   }}
 }}
 
