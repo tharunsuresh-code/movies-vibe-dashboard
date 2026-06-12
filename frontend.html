@@ -470,14 +470,19 @@ function renderFilm(film, data) {
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
-      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
-        ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
-        ${data.director ? ` · 🎬 ${esc(data.director)}` : ''}
-        ${data.release_date ? ` · 📅 ${esc(data.release_date)}` : ''}
-        ${genreHtml ? ` · ${genreHtml}` : ''}
-      </div>
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${videos.length} videos</div>
     </div>
+
+    ${(data.director || data.cast || data.music || data.release_date || genreHtml) ? `
+    <div class="card" style="padding:12px 16px;margin-bottom:12px">
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:0.82rem">
+        ${data.director ? `<div><span style="color:var(--text-dim);font-weight:600">Director:</span> ${esc(data.director)}</div>` : ''}
+        ${data.cast ? `<div><span style="color:var(--text-dim);font-weight:600">Cast:</span> ${esc(data.cast)}</div>` : ''}
+        ${data.music ? `<div><span style="color:var(--text-dim);font-weight:600">Music:</span> ${esc(data.music)}</div>` : ''}
+        ${data.release_date ? `<div><span style="color:var(--text-dim);font-weight:600">Release:</span> ${esc(data.release_date)}</div>` : ''}
+        ${genreHtml ? `<div><span style="color:var(--text-dim);font-weight:600">Genre:</span> ${genreHtml}</div>` : ''}
+      </div>
+    </div>` : ''}
 
     <div class="tabs">
       <div class="tab active" onclick="switchTab('zero', this)">🟢 Zero Spoiler</div>
@@ -687,14 +692,19 @@ function renderTrailerDetail(film, data) {
       ${data.tagline ? `<div style="font-size:0.85rem;color:var(--text-dim);margin:2px 0;font-weight:500">${esc(data.tagline)}</div>` : ''}
       ${data.genre_phrase ? `<div style="font-size:0.82rem;color:var(--text-dim);font-style:italic;margin:2px 0">${esc(data.genre_phrase)}</div>` : ''}
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
-      <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">
-        ${data.cast ? `🎭 ${esc(data.cast)}` : ''}
-        ${data.director ? ` · 🎬 ${esc(data.director)}` : ''}
-        ${data.release_date ? ` · 📅 ${esc(data.release_date)}` : ''}
-        ${data.wiki_url ? ` · <a href="${esc(data.wiki_url)}" target="_blank" style="color:var(--cyan)">Wikipedia</a>` : ''}
-      </div>
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${(data.videos || []).length} trailers</div>
     </div>
+
+    ${(data.director || data.cast || data.music || data.release_date || data.wiki_url) ? `
+    <div class="card" style="padding:12px 16px;margin-bottom:12px">
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:0.82rem">
+        ${data.director ? `<div><span style="color:var(--text-dim);font-weight:600">Director:</span> ${esc(data.director)}</div>` : ''}
+        ${data.cast ? `<div><span style="color:var(--text-dim);font-weight:600">Cast:</span> ${esc(data.cast)}</div>` : ''}
+        ${data.music ? `<div><span style="color:var(--text-dim);font-weight:600">Music:</span> ${esc(data.music)}</div>` : ''}
+        ${data.release_date ? `<div><span style="color:var(--text-dim);font-weight:600">Release:</span> ${esc(data.release_date)}</div>` : ''}
+        ${data.wiki_url ? `<div><span style="color:var(--text-dim);font-weight:600">Source:</span> <a href="${esc(data.wiki_url)}" target="_blank" style="color:var(--cyan)">Wikipedia</a></div>` : ''}
+      </div>
+    </div>` : ''}
 
     <!-- Stats Card -->
     <div class="card">

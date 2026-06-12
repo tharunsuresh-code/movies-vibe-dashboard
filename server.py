@@ -1023,6 +1023,64 @@ def check_wiki_director(film_name: str) -> str | None:
     return None
 
 
+def check_wiki_music(film_name: str) -> str | None:
+    """Extract music composer from Wikipedia infobox. Uses same cache as release date."""
+    import urllib.parse
+    cache_path = OUTPUT_DIR / "wiki-cache.json"
+    cache = {}
+    if cache_path.exists():
+        try:
+            with open(cache_path) as f:
+                cache = json.load(f)
+        except:
+            pass
+    cache_key = film_name.lower().strip()
+    entry = cache.get(cache_key, {})
+    if "music" in entry:
+        return entry.get("music")
+
+    title_patterns = [
+        f"{film_name} (2026 film)",
+        f"{film_name} (2025 film)",
+        f"{film_name} (film)",
+        film_name,
+    ]
+    for title in title_patterns:
+        try:
+            escaped = urllib.parse.quote(title)
+            resp = httpx.get(
+                f"https://en.wikipedia.org/w/api.php?action=parse&page={escaped}&prop=text&format=json",
+                timeout=10,
+                headers={"User-Agent": "TamilMovieDashboard/1.0"},
+            )
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            if "error" in data:
+                continue
+            html = data.get("parse", {}).get("text", {}).get("*", "")
+            music_m = re.search(r'(?:music\s+by|composed\s+by|music\s+director)\\s*</th>\\s*<td[^>]*>(.*?)</td>', html, re.IGNORECASE | re.DOTALL)
+            if music_m:
+                music_text = re.sub(r'<[^>]+>', '', music_m.group(1)).strip()
+                names = [n.strip() for n in music_text.split(',') if n.strip()]
+                music = ', '.join(names[:3])
+                entry["music"] = music
+                cache[cache_key] = entry
+                OUTPUT_DIR.mkdir(exist_ok=True)
+                with open(cache_path, "w") as f:
+                    json.dump(cache, f, ensure_ascii=False, indent=2)
+                return music
+        except:
+            continue
+
+    entry["music"] = None
+    cache[cache_key] = entry
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+    return None
+
+
 def get_trailer_leaderboard() -> list[dict]:
     """Search YouTube for upcoming Tamil movie trailers and rank by hype.
     Returns films NOT yet released (release_date >= today) sorted by hype score.
@@ -1161,6 +1219,7 @@ def get_trailer_leaderboard() -> list[dict]:
         # Check Wikipedia FIRST — skip released films before wasting API quota
         wiki_release, wiki_cast, wiki_url = check_wiki_release_date(film_name)
         wiki_director = check_wiki_director(film_name)
+        wiki_music = check_wiki_music(film_name)
         if wiki_release:
             try:
                 release = _dt.strptime(wiki_release, "%Y-%m-%d")
@@ -1206,6 +1265,7 @@ def get_trailer_leaderboard() -> list[dict]:
             "channel": trailers[0]["channel"] if trailers else "",
             "cast": wiki_cast or "",
             "director": wiki_director or "",
+            "music": wiki_music or "",
             "release_date": wiki_release or "",
             "wiki_url": wiki_url or "",
             "trailer_ids": [t["id"] for t in trailers],
@@ -1376,6 +1436,8 @@ async def api_film(film: str):
     # Try to get director from wiki cache
     if not data.get("director"):
         data["director"] = check_wiki_director(film) or ""
+    if not data.get("music"):
+        data["music"] = check_wiki_music(film) or ""
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.post("/api/film/{film}/refresh")
