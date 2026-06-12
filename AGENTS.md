@@ -18,7 +18,7 @@
 
 ### Deployment
 - **VPS**: `http://<VPS_IP>:8080` (IP configured via `VPS_IP` env var)
-- **Cloudflare Quick Tunnel**: random URL (changes on restart, dynamic discovery via `/api/tunnel-url`)
+- **Cloudflare Named Tunnel**: `https://movies.onekural.com` → `localhost:8080` (permanent URL)
 - **Vercel**: `movies-vibe-dashboard.vercel.app` (env vars: `VITE_API_KEY`, `VITE_VPS_IP`)
 - Frontend placeholders: `__VITE_API_KEY__` and `__VITE_VPS_IP__` replaced at build time
 - **GitHub**: `tharunsuresh-code/movies-vibe-dashboard` (auto-deploys to Vercel on push)
@@ -111,11 +111,6 @@ This generalizes well around release dates — lots of new comments → frequent
 ### Total Daily Quota: ~125 units (~1.25% of 10K budget)
 
 ## Known Issues
-
-### Cloudflare Tunnel URL
-Quick tunnel URLs change on restart. Frontend auto-discovers via `/api/tunnel-url`,
-but mixed-content blocking prevents Vercel-served pages from reaching HTTP VPS.
-**Workaround:** Update `TUNNEL_URL` in frontend.html after restart, or use VPS-served frontend.
 
 ### YouTube API Quota
 10K units/day free tier. Each search = 1 unit, each comment page = 1 unit.

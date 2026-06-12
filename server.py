@@ -1267,15 +1267,8 @@ async def api_scrape_releases():
 
 @app.get("/api/tunnel-url")
 async def api_tunnel_url():
-    """Return the current Cloudflare tunnel URL for the frontend to use."""
-    import re
-    log_file = Path("/var/log/cloudflared-tunnel.log")
-    if log_file.exists():
-        content = log_file.read_text()
-        urls = re.findall(r"https://[a-z0-9-]+\.trycloudflare\.com", content)
-        if urls:
-            return JSONResponse(content={"url": urls[-1]})  # latest tunnel URL, not first
-    return JSONResponse(content={"url": None})
+    """Return the permanent Cloudflare tunnel URL."""
+    return JSONResponse(content={"url": "https://movies.onekural.com"})
 
 # ─── API Routes ───────────────────────────────────────────────────────────
 
