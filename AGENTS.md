@@ -119,7 +119,8 @@ This generalizes well around release dates — lots of new comments → frequent
 ## Known Issues
 
 ### YouTube API Quota
-10K units/day free tier. Each search = 1 unit, each comment page = 1 unit.
+10K units/day free tier. search.list = 100 units (expensive!), commentThreads.list = 1 unit/page, videos.list = 1 unit.
+Search results cached for 24h to avoid redundant 100-unit search calls.
 Smart refresh skips films with no new videos. Trailer hype adds ~2-4 extra search calls per film.
 
 ## File Structure
@@ -161,7 +162,6 @@ Smart refresh skips films with no new videos. Trailer hype adds ~2-4 extra searc
 
 | Operation | Calls | Units |
 |-----------|-------|-------|
-| Theatrical refresh (8 films) | ~5 search + ~16 comment + ~1 stats | ~22 |
-| Trailer leaderboard refresh | ~5 search + ~30 comment + ~1 stats | ~36 |
-| Detail page clicks | 0 (cached) | 0 |
-| **Daily total (with 4h theatrical + 1 daily trailer)** | | **~125** |
+| Theatrical refresh (8 films) | ~8 search(100u each) + ~16 comment + ~1 stats | ~817 (first run), ~17 (cached) |
+| Trailer leaderboard refresh | ~10 search(100u each) + ~30 comment + ~1 stats | ~1031 (first run), ~31 (cached) |
+| **Daily total (with 24h search cache)** | | **~50-100** (mostly comments, searches cached) |

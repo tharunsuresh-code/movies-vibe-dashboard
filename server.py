@@ -148,8 +148,32 @@ def _is_relevant_video(video: dict, film: str) -> bool:
     return film_lower in title
 
 
+def _get_search_cache() -> dict:
+    """Load search cache from disk."""
+    cache_path = OUTPUT_DIR / "search-cache.json"
+    if cache_path.exists():
+        try:
+            with open(cache_path) as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def _save_search_cache(cache: dict):
+    """Save search cache to disk."""
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    with open(OUTPUT_DIR / "search-cache.json", "w") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+
 def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[dict]:
-    """Search YouTube for review videos. Returns [{id, title, channel, published}]."""
+    """Search YouTube for review videos. Returns [{id, title, channel, published}].
+    Caches results for 24h to save quota (search.list = 100 units)."""
+    # Check cache first (24h TTL)
+    cache = _get_search_cache()
+    cache_key = f"review:{film.lower()}"
+    cached = cache.get(cache_key)
+    if cached and cached.get("expires", 0) > datetime.now().timestamp():
+        return cached.get("results", [])[:max_videos]
     review_queries = [
         f"{film} movie review tamil",
         f"{film} review tamil",
@@ -189,12 +213,24 @@ def search_review_videos(film: str, api_key: str, max_videos: int = 6) -> list[d
     result = list(seen.values())
     # Filter out videos that aren't actually about this film (critical for short/numeric names)
     result = [v for v in result if _is_relevant_video(v, film)]
-    return result[:max_videos]
+    final = result[:max_videos]
+    # Cache for 24h
+    cache[cache_key] = {"results": final, "expires": datetime.now().timestamp() + 86400}
+    _save_search_cache(cache)
+    return final
 
 
 def search_trailer_videos(film: str, api_key: str, max_videos: int = 3) -> list[dict]:
     """Search YouTube for official trailer/teaser videos for a film.
-    Returns [{id, title, channel, published}]."""
+    Returns [{id, title, channel, published}].
+    Caches results for 24h to save quota (search.list = 100 units)."""
+    # Check cache first (24h TTL)
+    cache = _get_search_cache()
+    cache_key = f"trailer:{film.lower()}"
+    cached = cache.get(cache_key)
+    if cached and cached.get("expires", 0) > datetime.now().timestamp():
+        return cached.get("results", [])[:max_videos]
+
     queries = [
         f"{film} official trailer tamil",
         f"{film} trailer tamil",
@@ -229,30 +265,88 @@ def search_trailer_videos(film: str, api_key: str, max_videos: int = 3) -> list[
                     }
         except:
             continue
-    return list(seen.values())[:max_videos]
+    final = list(seen.values())[:max_videos]
+    # Cache for 24h
+    cache[cache_key] = {"results": final, "expires": datetime.now().timestamp() + 86400}
+    _save_search_cache(cache)
+    return final
 
 
 def fetch_video_stats(api_key: str, video_ids: list[str]) -> dict[str, dict]:
-    """Fetch view count and like count for video IDs via videos API.
-    Returns {video_id: {views: int, likes: int}}."""
+    """Fetch view count, like count, and description for video IDs via videos API.
+    Returns {video_id: {views: int, likes: int, description: str}}."""
     stats: dict[str, dict] = {}
     for i in range(0, len(video_ids), 50):
         batch = video_ids[i:i+50]
         try:
-            params = {"part": "statistics", "id": ",".join(batch), "key": api_key}
+            params = {"part": "statistics,snippet", "id": ",".join(batch), "key": api_key}
             resp = httpx.get(f"{YOUTUBE_API_BASE}/videos", params=params, timeout=15)
             if resp.status_code != 200:
                 continue
             for item in resp.json().get("items", []):
                 vid = item["id"]
                 stat = item.get("statistics", {})
+                snippet = item.get("snippet", {})
                 stats[vid] = {
                     "views": int(stat.get("viewCount", 0)),
                     "likes": int(stat.get("likeCount", 0)),
+                    "description": snippet.get("description", ""),
                 }
         except:
             continue
     return stats
+
+
+def extract_metadata_from_descriptions(descriptions: list[str]) -> dict:
+    """Extract director, cast, music, release date from YouTube trailer descriptions.
+    Returns {director: str, cast: str, music: str, release_date: str}."""
+    import re
+    combined = "\n".join(descriptions)
+
+    # Director patterns
+    director = ""
+    for pat in [
+        r'(?:director|directed\s+by|movie\s+director)[:\s]*([^\n]+)',
+        r'(?:டایரக்டர்|இயக்குனர்)[:\s]*([^\n]+)',
+    ]:
+        m = re.search(pat, combined, re.IGNORECASE)
+        if m:
+            director = m.group(1).strip().rstrip("|–-").strip()
+            break
+
+    # Cast/Star patterns
+    cast = ""
+    for pat in [
+        r'(?:cast|starring|star\s*cast|actors?)[:\s]*([^\n]+)',
+        r'(?:hero|heroine|lead)[:\s]*([^\n]+)',
+    ]:
+        m = re.search(pat, combined, re.IGNORECASE)
+        if m:
+            cast = m.group(1).strip().rstrip("|–-").strip()
+            break
+
+    # Music composer patterns
+    music = ""
+    for pat in [
+        r'(?:music|music\s+director|composer|bgm|background\s+music)[:\s]*([^\n]+)',
+    ]:
+        m = re.search(pat, combined, re.IGNORECASE)
+        if m:
+            music = m.group(1).strip().rstrip("|–-").strip()
+            break
+
+    # Release date patterns
+    release = ""
+    for pat in [
+        r'(?:release\s+date|releasing|coming\s+on|in\s+theatres?\s+on)[:\s]*(\d{1,2}[\s/\-]?\w+[\s/\-]?\d{2,4})',
+        r'(?:release\s+date|releasing|coming\s+on)[:\s]*([^\n]+)',
+    ]:
+        m = re.search(pat, combined, re.IGNORECASE)
+        if m:
+            release = m.group(1).strip().rstrip("|–-").strip()
+            break
+
+    return {"director": director, "cast": cast, "music": music, "release_date": release}
 
 
 def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: str) -> dict:
@@ -1233,6 +1327,10 @@ def get_trailer_leaderboard() -> list[dict]:
         total_views = sum(s.get("views", 0) for s in trailer_stats)
         total_likes = sum(s.get("likes", 0) for s in trailer_stats)
 
+        # Extract metadata from trailer descriptions (free, already fetched with stats)
+        descriptions = [t["stats"].get("description", "") for t in trailers if t["stats"].get("description")]
+        desc_meta = extract_metadata_from_descriptions(descriptions) if descriptions else {}
+
         # Fetch comments from top 2 trailers
         trailer_comments = []
         for t in trailers[:2]:
@@ -1264,10 +1362,10 @@ def get_trailer_leaderboard() -> list[dict]:
             "trailer_count": len(trailers),
             "latest_trailer": trailers[0]["title"] if trailers else "",
             "channel": trailers[0]["channel"] if trailers else "",
-            "cast": wiki_cast or "",
-            "director": wiki_director or "",
-            "music": wiki_music or "",
-            "release_date": wiki_release or "",
+            "cast": wiki_cast or desc_meta.get("cast", ""),
+            "director": wiki_director or desc_meta.get("director", ""),
+            "music": wiki_music or desc_meta.get("music", ""),
+            "release_date": wiki_release or desc_meta.get("release_date", ""),
             "wiki_url": wiki_url or "",
             "trailer_ids": [t["id"] for t in trailers],
             "videos": [{"id": t["id"], "url": f"https://youtube.com/watch?v={t['id']}", "title": t["title"], "comment_count": 0} for t in trailers],
