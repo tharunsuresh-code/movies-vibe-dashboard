@@ -571,8 +571,8 @@ function renderFilm(film, data) {
       <div class="card">
         <div class="card-title">⭐ What Audiences Felt</div>
         <ul style="list-style:none">
-          ${(a.what_people_loved || []).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(l)}</li>`).join('')}
-          ${(a.what_people_criticized || []).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(c)}</li>`).join('')}
+          ${(a.what_people_loved || []).slice(0, 5).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(l)}</li>`).join('')}
+          ${(a.what_people_criticized || []).slice(0, 5).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(c)}</li>`).join('')}
         </ul>
       </div>` : ''}
     </div>

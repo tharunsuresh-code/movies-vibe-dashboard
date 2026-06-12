@@ -440,6 +440,7 @@ def fetch_new_comments(api_key: str, video_id: str, seen_ids: set, max_comments:
 ANALYSIS_PROMPT_TEMPLATE = """You are a Tamil cinema review analyst. Analyze these YouTube comments about the Tamil film "{film}".
 
 Comments are in Tamil, English, or Tanglish.
+IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5.
 
 Output ONLY valid JSON:
 {{
@@ -471,8 +472,8 @@ Output ONLY valid JSON:
   }},
 
   "top_themes": [{{"theme": "<theme>", "frequency": "very high/high/medium/low", "sentiment": "positive/negative/mixed"}}],
-  "what_people_loved": ["<thing>", "<thing>", "<thing>"],
-  "what_people_criticized": ["<thing>", "<thing>"],
+  "what_people_loved": ["<thing>", "<thing>", "<thing>", "<thing>", "<thing>"],
+  "what_people_criticized": ["<thing>", "<thing>", "<thing>", "<thing>", "<thing>"],
 
   "audience_engagement": {{
     "theatre_response": "<one sentence>",
@@ -523,6 +524,7 @@ def run_llm_analysis(film: str, comments: list[str], api_key: str) -> dict:
 
 MERGE_PROMPT = """You are updating an audience sentiment analysis for the Tamil film "{film}" based on NEW comments.
 The previous analysis was based on older comments. Now incorporate these new comments to update the analysis.
+IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5.
 
 Previous analysis:
 {previous}
@@ -530,13 +532,17 @@ Previous analysis:
 New comments ({count} new):
 {new_comments}
 
-Update the analysis JSON. Keep the same structure. Adjust:
+Update the analysis JSON. Keep ALL existing fields and their structure. Adjust:
 - sentiment_breakdown.positive_percent and negative_percent based on new comment sentiment
 - tab_zero_spoiler.audience_mood if the mood has shifted
+- tab_mild_spoiler: keep first_half_vibe, second_half_vibe, uniqueness, why_watch — update if new comments reveal changes
+- tab_full_spoiler: keep audience_reaction_highlights, climax_analysis, technical_breakdown — update if new comments reveal changes
 - top_themes: add any new themes, update frequencies
 - what_people_loved / what_people_criticized: add new points
 - rating: adjust slightly if sentiment shifted significantly
 - popularity_score: adjust based on new volume + sentiment
+
+IMPORTANT: Include ALL these fields in your output: rating, sentiment_breakdown, genre, popularity_score, tab_zero_spoiler, tab_mild_spoiler, tab_full_spoiler, top_themes, what_people_loved, what_people_criticized, audience_engagement.
 
 Output ONLY valid JSON with the updated analysis. Include _comments_analyzed field with total count (old + new)."""
 
