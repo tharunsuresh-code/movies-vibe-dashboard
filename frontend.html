@@ -374,7 +374,7 @@ function renderDashboard(films, newReleases, trailers) {
           <div class="lb-info">
             <div class="lb-name">${esc(t.film)}</div>
             <div class="lb-meta">
-              <span class="lb-tag">${catEmoji} ${esc(category)}</span>
+              <span class="buzz-badge ${buzzClass(category)}">${catEmoji} ${esc(category)}</span>
               <span>👁 ${viewsStr}</span>
             </div>
             ${genreHtml}
