@@ -309,7 +309,6 @@ function renderDashboard(films, newReleases, trailers) {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const buzz = f.buzz || '';
       const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
-      const ratingHtml = f.rating ? `<span class="lb-rating">⭐ ${f.rating}</span>` : '';
       const genreHtml = (f.genre || []).map(g => `<span class="lb-tag">${esc(g)}</span>`).join(' ');
       const releaseDateHtml = f.release_date ? `<div class="lb-release-date">${esc(f.release_date)}</div>` : '';
 
@@ -320,7 +319,6 @@ function renderDashboard(films, newReleases, trailers) {
             <div class="lb-name">${esc(f.film)}</div>
             ${releaseDateHtml}
             <div class="lb-meta">
-              ${ratingHtml}
               ${buzzHtml}
               ${genreHtml}
               <span>💬 ${f.total_comments || 0}</span>
