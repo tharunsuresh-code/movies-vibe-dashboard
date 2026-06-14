@@ -297,42 +297,74 @@ def fetch_video_stats(api_key: str, video_ids: list[str]) -> dict[str, dict]:
     return stats
 
 
+def normalize_analysis(analysis: dict) -> dict:
+    """Ensure array fields are arrays, not strings. LLM sometimes returns strings."""
+    for key in ['tab_zero_spoiler', 'tab_mild_spoiler', 'tab_full_spoiler']:
+        tab = analysis.get(key, {})
+        if isinstance(tab, dict):
+            arh = tab.get('audience_reaction_highlights')
+            if isinstance(arh, str):
+                sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', arh) if s.strip()]
+                tab['audience_reaction_highlights'] = sentences if sentences else [arh]
+    return analysis
+
+
 def extract_metadata_from_descriptions(descriptions: list[str]) -> dict:
     """Extract director, cast, music, release date from YouTube trailer descriptions.
-    Returns {director: str, cast: str, music: str, release_date: str}."""
+    Returns {director: str, cast: str, music: str, release_date: str}.
+    Only extracts names, not full sentences."""
     import re
     combined = "\n".join(descriptions)
+
+    # Helper: clean extracted name — stop at sentence boundaries
+    def clean_name(text: str) -> str:
+        # Stop at common sentence continuations after comma
+        text = re.split(r',\s*(?:the\s+film|who|and\s+(?:the|his|her)|produced|presented|features|offers|boasts|has|is|was|will|cinematography|editing|production|direction|and\s+produced)', text, flags=re.IGNORECASE)[0]
+        # Stop at period+space but NOT at initials like 'G. V.' — require 2+ lowercase chars after period
+        text = re.split(r'\.\s+(?=[a-z]{2,})', text)[0]
+        text = re.split(r'\s+who\s+', text, flags=re.IGNORECASE)[0]
+        text = text.strip().rstrip("|–-,.").strip()
+        # Remove leading articles/conjunctions
+        text = re.sub(r'^(?:and|,|\s)+', '', text).strip()
+        return text
 
     # Director patterns
     director = ""
     for pat in [
-        r'(?:director|directed\s+by|movie\s+director)[:\s]*([^\n]+)',
-        r'(?:டایரக்டர்|இயக்குனர்)[:\s]*([^\n]+)',
+        r'(?:written\s+and\s+)?directed\s+by\s+([A-Z][^,\n]{2,60})',
+        r'(?:movie\s+)?director[:\s]+([A-Z][^,\n]{2,60})',
+        r'(?:இயக்குனர்)[:\s]*([^\n,]+)',
     ]:
         m = re.search(pat, combined, re.IGNORECASE)
         if m:
-            director = m.group(1).strip().rstrip("|–-").strip()
+            director = clean_name(m.group(1))
             break
 
-    # Cast/Star patterns
+    # Cast/Star patterns — grab comma-separated names
     cast = ""
     for pat in [
-        r'(?:cast|starring|star\s*cast|actors?)[:\s]*([^\n]+)',
-        r'(?:hero|heroine|lead)[:\s]*([^\n]+)',
+        r'(?:starring|star\s*cast)[:\s]+([^\n]+?)(?:\s+in\s+(?:key|pivotal|lead|main|important)|$)',
+        r'(?:cast|actors?)[:\s]+([A-Z][^\n]{3,120})',
+        r'(?:features?\s+)?(?:a\s+)?star-studded\s+cast\s+(?:of\s+)?(?:including\s+)?([A-Z][^\n]{3,120})',
     ]:
         m = re.search(pat, combined, re.IGNORECASE)
         if m:
-            cast = m.group(1).strip().rstrip("|–-").strip()
+            raw = m.group(1).strip()
+            # Extract just name-like tokens: "Name, Name and Name"
+            names = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*', raw)
+            if names:
+                cast = ", ".join(names[:6])  # max 6 names
             break
 
     # Music composer patterns
     music = ""
     for pat in [
-        r'(?:music|music\s+director|composer|bgm|background\s+music)[:\s]*([^\n]+)',
+        r'music\s+(?:composed|by|director)[:\s]+([A-Z][^,\n]{2,60})',
+        r'(?:composer|bgm|background\s+music)[:\s]+([A-Z][^,\n]{2,60})',
     ]:
         m = re.search(pat, combined, re.IGNORECASE)
         if m:
-            music = m.group(1).strip().rstrip("|–-").strip()
+            music = clean_name(m.group(1))
             break
 
     # Release date patterns
@@ -615,6 +647,7 @@ def run_llm_analysis(film: str, comments: list[str], api_key: str) -> dict:
         start, end = content.find("{"), content.rfind("}")
         if start >= 0 and end > start:
             result = json.loads(content[start:end + 1])
+            result = normalize_analysis(result)
             result["_comments_analyzed"] = len(sample)
             return result
     except Exception:
@@ -678,6 +711,7 @@ def run_merge_analysis(film: str, existing_analysis: dict, new_comments: list[st
             start, end = content.find("{"), content.rfind("}")
             if start >= 0 and end > start:
                 merged = json.loads(content[start:end + 1])
+                merged = normalize_analysis(merged)
                 merged["_comments_analyzed"] = existing_analysis.get("_comments_analyzed", 0) + len(sample)
                 merged["_merge_update"] = True
                 return merged

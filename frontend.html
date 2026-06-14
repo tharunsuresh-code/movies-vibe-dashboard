@@ -604,11 +604,11 @@ function renderFilm(film, data) {
     <div id="tab-full" class="tab-content">
       <div class="spoiler-banner full">🔴 Full spoilers — contains scene analysis and climax details</div>
 
-      ${(tab2.audience_reaction_highlights || []).length ? `
+      ${((Array.isArray(tab2.audience_reaction_highlights) ? tab2.audience_reaction_highlights : tab2.audience_reaction_highlights ? [tab2.audience_reaction_highlights] : [])).length ? `
       <div class="card">
         <div class="card-title">🔥 Audience Reaction Highlights</div>
         <ul style="list-style:none">
-          ${tab2.audience_reaction_highlights.map(s => `<li style="padding:8px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">💬 ${esc(s)}</li>`).join('')}
+          ${(Array.isArray(tab2.audience_reaction_highlights) ? tab2.audience_reaction_highlights : [tab2.audience_reaction_highlights]).map(s => `<li style="padding:8px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">💬 ${esc(s)}</li>`).join('')}
         </ul>
       </div>` : ''}
 
