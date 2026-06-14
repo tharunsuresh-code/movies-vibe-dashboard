@@ -241,6 +241,30 @@ window.addEventListener('hashchange', route);
 function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, function(m) {
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
 
+function short_mood(mood) {
+  if (!mood) return '';
+  const m = mood.toLowerCase();
+  const map = [
+    ['celebratory', 'Celebratory'], ['blockbuster', 'Blockbuster'], ['explosive', 'Explosive'],
+    ['divisive', 'Divisive'], ['polarizing', 'Polarizing'], ['disappointed', 'Disappointed'],
+    ['underwhelming', 'Underwhelming'], ['mixed bag', 'Mixed Bag'], ['mixed', 'Mixed'],
+    ['tepid', 'Tepid'], ['muted', 'Muted'], ['enthusiastic', 'Enthusiastic'],
+    ['ecstatic', 'Ecstatic'], ['thrilled', 'Thrilled'], ['cautiously', 'Cautious Hope'],
+    ['optimistic', 'Optimistic'], ['strongly positive', 'Raving'], ['mostly positive', 'Mostly Positive'],
+    ['positive', 'Positive'], ['negative', 'Poor Reception'], ['excited', 'High Expectations'],
+    ['boring', 'Boring'], ['average', 'Average'], ['loved', 'Fan Favorite'],
+    ['praised', 'Praised'], ['solid', 'Solid'], ['decent', 'Decent'],
+    ['outstanding', 'Outstanding'], ['fantastic', 'Fantastic'], ['brilliant', 'Brilliant'],
+    ['gripping', 'Gripping'], ['refreshing', 'Refreshing'], ['intense', 'Intense'],
+  ];
+  for (const [key, label] of map) {
+    if (m.includes(key)) return label;
+  }
+  // Fallback: take first 3-4 words
+  const words = mood.split(/\s+/).slice(0, 4);
+  return words.join(' ');
+}
+
 function buzzClass(level) {
   const map = {'explosive':'explosive','very high':'very-high','high':'high','medium':'medium','low':'low','muted':'muted',
     'celebratory':'explosive','excited':'very-high','cautiously optimistic':'high','mixed':'medium',
@@ -437,7 +461,8 @@ function renderFilm(film, data) {
   const rating = a.rating || '—';
 
   const stars = "★".repeat(Math.min(10, Math.floor(rating))) + "☆".repeat(Math.max(0, 10 - Math.floor(rating)));
-  const buzz = tab0.audience_mood || '';
+  const raw_mood = tab0.audience_mood || '';
+  const buzz = short_mood(raw_mood);
   const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
 
   const themeHtml = (a.top_themes || []).slice(0, 5).map(t =>
@@ -590,14 +615,6 @@ function renderFilm(film, data) {
         <p class="summary-text">${esc(tab1.why_watch)}</p>
       </div>` : ''}
 
-      ${(a.what_people_loved || []).length ? `
-      <div class="card">
-        <div class="card-title">⭐ What Audiences Felt</div>
-        <ul style="list-style:none">
-          ${(a.what_people_loved || []).slice(0, 5).map(l => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(l)}</li>`).join('')}
-          ${(a.what_people_criticized || []).slice(0, 5).map(c => `<li style="padding:6px 0;font-size:0.85rem;border-bottom:1px solid var(--border)">${esc(c)}</li>`).join('')}
-        </ul>
-      </div>` : ''}
     </div>
 
     <!-- TAB 2: FULL SPOILER -->
