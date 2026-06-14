@@ -381,7 +381,7 @@ def extract_metadata_from_descriptions(descriptions: list[str]) -> dict:
     return {"director": director, "cast": cast, "music": music, "release_date": release}
 
 
-def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: str) -> dict:
+def compute_hype_score(trailer_stats: list[dict], comments: list[str], llm_key: str, film: str = "") -> dict:
     """Compute hype score from trailer metrics + comment analysis.
     Returns {hype_score: 0-100, views, likes, like_ratio, comment_count, sentiment, vibe}."""
     import math as _math
@@ -828,7 +828,7 @@ def process_film(film: str, force: bool = False) -> dict:
                 tc = fetch_comments_api(api_key, t["id"], 100)
                 trailer_comments.extend(tc)
             trailer_stats_list = [trailer_stats_map.get(tid, {}) for tid in trailer_vid_ids]
-            hype = compute_hype_score(trailer_stats_list, trailer_comments, llm_key)
+            hype = compute_hype_score(trailer_stats_list, trailer_comments, llm_key, film=film)
     except:
         pass
 
@@ -1387,7 +1387,7 @@ def get_trailer_leaderboard() -> list[dict]:
             trailer_comments.extend(tc)
 
         # Compute hype
-        hype = compute_hype_score(trailer_stats, trailer_comments, llm_key)
+        hype = compute_hype_score(trailer_stats, trailer_comments, llm_key, film=film_name)
 
         # Run full sentiment analysis (pre-computed for detail page)
         sentiment_data = {}
