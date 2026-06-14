@@ -318,21 +318,20 @@ def extract_metadata_from_descriptions(descriptions: list[str]) -> dict:
 
     # Helper: clean extracted name — stop at sentence boundaries
     def clean_name(text: str) -> str:
-        # Stop at common sentence continuations after comma
-        text = re.split(r',\s*(?:the\s+film|who|and\s+(?:the|his|her)|produced|presented|features|offers|boasts|has|is|was|will|cinematography|editing|production|direction|and\s+produced)', text, flags=re.IGNORECASE)[0]
-        # Stop at period+space but NOT at initials like 'G. V.' — require 2+ lowercase chars after period
+        # Stop at sentence continuations (with or without comma)
+        text = re.split(r'(?:,\s*|\s+)(?:the\s+film|who|and\s+(?:the|his|her|produced|also|versatile)|produced|presented|features|offers|boasts|has|is|was|will|cinematography|editing|production|direction)', text, flags=re.IGNORECASE)[0]
+        # Stop at period+space but NOT at initials like 'G. V.'
         text = re.split(r'\.\s+(?=[a-z]{2,})', text)[0]
-        text = re.split(r'\s+who\s+', text, flags=re.IGNORECASE)[0]
         text = text.strip().rstrip("|–-,.").strip()
-        # Remove leading articles/conjunctions
-        text = re.sub(r'^(?:and|,|\s)+', '', text).strip()
+        # Remove leading prepositions
+        text = re.sub(r'^(?:and|,|\s|of\s+|by\s+)+', '', text).strip()
         return text
 
     # Director patterns
     director = ""
     for pat in [
         r'(?:written\s+and\s+)?directed\s+by\s+([A-Z][^,\n]{2,60})',
-        r'(?:movie\s+)?director[:\s]+([A-Z][^,\n]{2,60})',
+        r'(?:movie\s+)?director(?!\s+of\s+photography)[:\s]+([A-Z][^,\n]{2,60})',
         r'(?:இயக்குனர்)[:\s]*([^\n,]+)',
     ]:
         m = re.search(pat, combined, re.IGNORECASE)
@@ -361,6 +360,7 @@ def extract_metadata_from_descriptions(descriptions: list[str]) -> dict:
     for pat in [
         r'music\s+(?:composed|by|director)[:\s]+([A-Z][^,\n]{2,60})',
         r'(?:composer|bgm|background\s+music)[:\s]+([A-Z][^,\n]{2,60})',
+        r'(?:music\s+)?(?:by|composed\s+by)\s+([A-Z][^,\n]{2,60})',
     ]:
         m = re.search(pat, combined, re.IGNORECASE)
         if m:
@@ -414,7 +414,7 @@ Comments:
                 json={"model": "openai/gpt-chat-latest",
                        "messages": [{"role": "user", "content": prompt}],
                        "response_format": {"type": "json_object"},
-                       "max_tokens": 600, "temperature": 0.3},
+                       "max_tokens": 1000, "temperature": 0.3},
                 timeout=30,
             )
             if resp.status_code == 200:
@@ -427,6 +427,21 @@ Comments:
                 genre_phrase = parsed.get("genre_phrase", "")
                 rating_label = parsed.get("rating_label", "")
                 tagline = parsed.get("tagline", "")
+                # Fallback: derive rating_label from category if empty
+                if not rating_label and category:
+                    cat_labels = {
+                        'Celebratory': 'Huge Celebration',
+                        'Excited': 'High Excitement',
+                        'Cautiously Optimistic': 'Cautious Hope',
+                        'Mixed': 'Mixed Feelings',
+                        'Polarizing': 'Divided Fans',
+                        'Disappointed': 'Let Down',
+                        'Surprised': 'Pleasant Surprise',
+                        'Divisive': 'Split Opinions',
+                        'Anticipated': 'High Anticipation',
+                        'Muted': 'Low Buzz',
+                    }
+                    rating_label = cat_labels.get(category, '')
         except:
             pass
 
