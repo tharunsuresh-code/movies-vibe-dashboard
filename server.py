@@ -299,6 +299,11 @@ def fetch_video_stats(api_key: str, video_ids: list[str]) -> dict[str, dict]:
 
 def normalize_analysis(analysis: dict) -> dict:
     """Ensure array fields are arrays, not strings. LLM sometimes returns strings."""
+    # Clean empty strings from all list fields
+    for key in ['what_people_loved', 'what_people_criticized']:
+        val = analysis.get(key, [])
+        if isinstance(val, list):
+            analysis[key] = [v for v in val if isinstance(v, str) and v.strip()]
     for key in ['tab_zero_spoiler', 'tab_mild_spoiler', 'tab_full_spoiler']:
         tab = analysis.get(key, {})
         if isinstance(tab, dict):
@@ -306,6 +311,8 @@ def normalize_analysis(analysis: dict) -> dict:
             if isinstance(arh, str):
                 sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', arh) if s.strip()]
                 tab['audience_reaction_highlights'] = sentences if sentences else [arh]
+            elif isinstance(arh, list):
+                tab['audience_reaction_highlights'] = [v for v in arh if isinstance(v, str) and v.strip()]
     return analysis
 
 
@@ -587,7 +594,7 @@ def fetch_new_comments(api_key: str, video_id: str, seen_ids: set, max_comments:
 ANALYSIS_PROMPT_TEMPLATE = """You are a Tamil cinema review analyst. Analyze these YouTube comments about the Tamil film "{film}".
 
 Comments are in Tamil, English, or Tanglish.
-IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5.
+IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5. NEVER include empty strings "" in any array — if you have fewer items, use fewer. Each array item must be a non-empty string.
 
 Output ONLY valid JSON:
 {{
@@ -672,7 +679,7 @@ def run_llm_analysis(film: str, comments: list[str], api_key: str) -> dict:
 
 MERGE_PROMPT = """You are updating an audience sentiment analysis for the Tamil film "{film}" based on NEW comments.
 The previous analysis was based on older comments. Now incorporate these new comments to update the analysis.
-IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5.
+IMPORTANT: Limit top_themes to max 5, what_people_loved to max 5, what_people_criticized to max 5. NEVER include empty strings "" in any array — if you have fewer items, use fewer. Each array item must be a non-empty string.
 
 Previous analysis:
 {previous}
@@ -788,6 +795,7 @@ def process_film(film: str, force: bool = False) -> dict:
         # Enough new comments — merge them
         analysis = run_merge_analysis(film, existing_analysis, new_comments_total, llm_key)
         seen_comment_ids = updated_ids
+        all_comments = new_comments_total
         # Count total comments (existing + new)
         total_comments = existing_analysis.get("_comments_analyzed", 0) + len(new_comments_total)
     else:
@@ -1350,6 +1358,16 @@ def get_trailer_leaderboard() -> list[dict]:
             "published": t["published"],
         })
 
+    # Manual overrides for films Wikipedia can't find by name
+    # Maps cleaned film name -> actual release date (YYYY-MM-DD)
+    MANUAL_RELEASE_DATES = {
+        "tn2026": "2026-05-01",  # Ajith Kumar film, already released
+        "#tn2026": "2026-05-01",
+        "#tn2026 - ": "2026-05-01",
+        "sattendru maarudhu vaanilai": "2026-06-12",  # Already released
+        "sattendru maarudhu": "2026-06-12",
+    }
+
     # Compute hype for each film group
     from datetime import datetime as _dt
     results = []
@@ -1358,6 +1376,16 @@ def get_trailer_leaderboard() -> list[dict]:
         registry = load_films()
         if film_name in registry or film_name.lower() in [k.lower() for k in registry]:
             continue
+
+        # Check manual overrides for known released films
+        manual_key = film_name.lower().strip().strip("#-–").strip()
+        if manual_key in MANUAL_RELEASE_DATES:
+            try:
+                release = _dt.strptime(MANUAL_RELEASE_DATES[manual_key], "%Y-%m-%d")
+                if release < _dt.now():
+                    continue  # Already released, skip from trailer board
+            except:
+                pass
 
         # Check Wikipedia FIRST — skip released films before wasting API quota
         wiki_release, wiki_cast, wiki_url = check_wiki_release_date(film_name)
