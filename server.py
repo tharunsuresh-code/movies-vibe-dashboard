@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import subprocess
@@ -1536,7 +1537,7 @@ def scrape_wiki_releases() -> list[dict]:
 
 @app.get("/api/scrape-releases")
 async def api_scrape_releases():
-    films = scrape_wiki_releases()
+    films = await asyncio.to_thread(scrape_wiki_releases)
     return JSONResponse(content=films, headers={"Cache-Control": "public, max-age=3600"})
 
 @app.get("/api/tunnel-url")
@@ -1561,17 +1562,17 @@ async def api_root():
 
 @app.get("/api/leaderboard")
 async def api_leaderboard():
-    data = get_leaderboard()
+    data = await asyncio.to_thread(get_leaderboard)
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.get("/api/new-releases")
 async def api_new_releases():
-    data = get_new_releases()
+    data = await asyncio.to_thread(get_new_releases)
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.get("/api/trailer-leaderboard")
 async def api_trailer_leaderboard():
-    data = get_trailer_leaderboard()
+    data = await asyncio.to_thread(get_trailer_leaderboard)
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.post("/api/refresh-trailer")
@@ -1580,7 +1581,7 @@ async def api_refresh_trailer():
     cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
     if cache_path.exists():
         cache_path.unlink()
-    data = get_trailer_leaderboard()
+    data = await asyncio.to_thread(get_trailer_leaderboard)
     return JSONResponse(content={"status": "ok", "count": len(data)})
 
 @app.get("/api/trailer/{film}")
@@ -1600,9 +1601,9 @@ async def api_trailer_detail(film: str):
 
 @app.get("/api/film/{film}")
 async def api_film(film: str):
-    data = load_film_data(film)
+    data = await asyncio.to_thread(load_film_data, film)
     if "error" in data and data.get("_status") == "nochange":
-        data = load_film_data(film)
+        data = await asyncio.to_thread(load_film_data, film)
     # Enrich with cast from FILMS_META
     meta = FILMS_META.get(film, {})
     if meta.get("star"):
@@ -1611,19 +1612,19 @@ async def api_film(film: str):
         data["release_date"] = meta["release_date"]
     # Try to get director from wiki cache
     if not data.get("director"):
-        data["director"] = check_wiki_director(film) or ""
+        data["director"] = await asyncio.to_thread(check_wiki_director, film) or ""
     if not data.get("music"):
-        data["music"] = check_wiki_music(film) or ""
+        data["music"] = await asyncio.to_thread(check_wiki_music, film) or ""
     return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=18000, s-maxage=18000"})
 
 @app.post("/api/film/{film}/refresh")
 async def api_refresh_film(film: str):
-    data = process_film(film, force=True)
+    data = await asyncio.to_thread(process_film, film, force=True)
     return JSONResponse(content={"status": "ok" if "_status" in data else "error", "film": film})
 
 @app.post("/api/refresh")
 async def api_refresh_all():
-    results = smart_refresh()
+    results = await asyncio.to_thread(smart_refresh)
     updated = [f for f, s in results.items() if s == "fresh"]
     return JSONResponse(content={"status": "ok", "updated": updated})
 
@@ -1634,11 +1635,11 @@ async def api_films_list():
 
 @app.post("/api/films/add/{film}")
 async def api_add_film(film: str):
-    registry = load_films()
+    registry = await asyncio.to_thread(load_films)
     if film not in registry:
         registry[film] = {"last_video_ids": [], "last_checked": None, "added": datetime.now(timezone.utc).isoformat()}
-        save_films(registry)
-    data = process_film(film, force=True)
+        await asyncio.to_thread(save_films, registry)
+    data = await asyncio.to_thread(process_film, film, force=True)
     return JSONResponse(content={"status": "ok", "film": film})
 
 
