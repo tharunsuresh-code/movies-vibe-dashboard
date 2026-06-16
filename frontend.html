@@ -492,7 +492,6 @@ function renderFilm(film, data) {
 
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
-      ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${videos.length} videos</div>
     </div>
 
@@ -705,7 +704,6 @@ function renderTrailerDetail(film, data) {
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
       ${(() => { const t = data.tagline || ""; const g = data.genre_phrase || ""; const show = t.length >= g.length ? t : g; return show ? `<div style="font-size:0.85rem;color:var(--text-dim);margin:2px 0;font-style:italic;font-weight:500">${esc(show)}</div>` : ""; })()}
-      ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${(data.videos || []).length} trailers</div>
     </div>
 

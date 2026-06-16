@@ -606,7 +606,7 @@ Output ONLY valid JSON:
 
   "tab_zero_spoiler": {{
     "vibe_summary": "<2 sentences on the overall audience vibe/reaction, zero plot details>",
-    "audience_mood": "<one word like: Celebratory/Mixed/Disappointed/Excited/Muted>",
+    "audience_mood": "<ONE OR TWO words max, e.g.: Celebratory/Excited/Cautiously Optimistic/Mixed/Polarizing/Muted. Never sentences.>",
     "genre_tags": ["<tag>", "<tag>"],
     "who_should_watch": "<one sentence>",
     "performance_highlights": "<audience takes on acting standout performances, zero plot details>",
