@@ -1241,17 +1241,18 @@ def get_trailer_leaderboard() -> list[dict]:
     from datetime import datetime, timedelta
 
     cache_path = OUTPUT_DIR / "trailer-leaderboard-cache.json"
-    # Cache for 6 hours
+    # Return cached data if available (even if expired) — rebuild only on
+    # explicit /api/refresh-trailer call or cron. Prevents blocking GET
+    # requests with a full YouTube + LLM rebuild.
     if cache_path.exists():
         try:
             with open(cache_path) as f:
                 cache = json.load(f)
-            cached_at = datetime.fromisoformat(cache.get("cached_at", "2000-01-01"))
-            if (datetime.now() - cached_at).total_seconds() < 6 * 3600:
-                return cache.get("trailers", [])
+            return cache.get("trailers", [])
         except:
             pass
 
+    # No cache at all — do a first build (only if explicitly triggered or first run)
     api_key = get_youtube_key()
     llm_key = get_openrouter_key()
     if not api_key:
