@@ -681,7 +681,7 @@ function renderTrailerDetail(film, data) {
   const category = data.category || data.sentiment || 'Anticipated';
   const catEmoji = {'Celebratory':'🎉','Excited':'🔥','Cautiously Optimistic':'🤞','Mixed':'🤔','Polarizing':'⚡','Disappointed':'😔','Surprised':'😮','Divisive':'💔','Anticipated':'🎬','Muted':'😶'}[category] || '🎬';
   const ratingLabel = data.rating_label || category;
-  const buzz = tab0.audience_mood || ratingLabel;
+  const buzz = ratingLabel || tab0.audience_mood;
   const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
 
   const videoHtml = (data.videos || []).map(v =>
@@ -704,8 +704,7 @@ function renderTrailerDetail(film, data) {
 
     <div class="header" style="padding-top:8px;border:none">
       <h1 style="font-size:1.6rem;background:none;-webkit-text-fill-color:var(--text);color:var(--text);margin-bottom:4px">${esc(film)}</h1>
-      ${data.tagline ? `<div style="font-size:0.85rem;color:var(--text-dim);margin:2px 0;font-weight:500">${esc(data.tagline)}</div>` : ''}
-      ${data.genre_phrase ? `<div style="font-size:0.82rem;color:var(--text-dim);font-style:italic;margin:2px 0">${esc(data.genre_phrase)}</div>` : ''}
+      ${(() => { const t = data.tagline || ""; const g = data.genre_phrase || ""; const show = t.length >= g.length ? t : g; return show ? `<div style="font-size:0.85rem;color:var(--text-dim);margin:2px 0;font-style:italic;font-weight:500">${esc(show)}</div>` : ""; })()}
       ${buzzHtml ? `<div style="margin:4px 0">${buzzHtml}</div>` : ''}
       <div style="font-size:0.82rem;color:var(--text-dim);margin-top:2px">💬 ${total} comments · ${(data.videos || []).length} trailers</div>
     </div>
@@ -742,7 +741,6 @@ function renderTrailerDetail(film, data) {
           <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Like Ratio</div>
         </div>
       </div>
-      ${data.vibe ? `<div class="vibe-block" style="margin-top:14px">${esc(data.vibe)}</div>` : ''}
     </div>
 
     <!-- Audience Vibe -->
