@@ -328,7 +328,7 @@ function renderDashboard(films, newReleases, trailers) {
   // ── SECTION 1: THEATRICAL LEADERBOARD ─────────────────────────
   html += `<div class="card" style="padding:8px">`;
   if (films && films.length > 0) {
-    html += `<div class="lb-header"><span class="lb-header-label">Rank</span><span></span><span class="lb-header-label" style="text-align:right">Score</span></div>`;
+    html += `<div class="lb-header"><span class="lb-header-label">Rank</span><span></span><span class="lb-header-label" style="text-align:right">Rating</span></div>`;
     films.forEach((f, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
       const buzz = f.buzz || '';
@@ -348,7 +348,7 @@ function renderDashboard(films, newReleases, trailers) {
               <span>💬 ${f.total_comments || 0}</span>
             </div>
           </div>
-          <div class="lb-score">${f.popularity_score || 0}</div>
+          <div class="lb-score">${f.analysis?.rating || '—'}</div>
         </div>
       `;
     });
