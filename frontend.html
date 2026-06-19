@@ -725,8 +725,8 @@ function renderTrailerDetail(film, data) {
       <div class="card-title">📊 Trailer Stats</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
         <div>
-          <div style="font-size:1.4rem;font-weight:800;color:var(--accent)">${data.hype_score || 0}</div>
-          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Hype</div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--accent)">${a.rating || '—'}</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase">Rating</div>
         </div>
         <div>
           <div style="font-size:1.4rem;font-weight:800;color:var(--cyan)">${viewsStr}</div>
@@ -766,19 +766,6 @@ function renderTrailerDetail(film, data) {
         <span class="mix">🤔 ${sb.mixed_percent || 0}%</span>
         <span class="neg">😠 ${sb.negative_percent || 0}%</span>
         <span class="neu">😶 ${sb.neutral_percent || 0}%</span>
-      </div>
-    </div>` : ''}
-
-    <!-- Rating -->
-    ${a.rating ? `
-    <div class="card">
-      <div class="card-title">⭐ Trailer Reaction Rating</div>
-      <div class="rating-hero">
-        <div class="rating-num">${a.rating}</div>
-        <div>
-          <div class="rating-stars">${"★".repeat(Math.min(10, Math.floor(a.rating))) + "☆".repeat(Math.max(0, 10 - Math.floor(a.rating)))}</div>
-          <div class="rating-label">From ${total} trailer comments</div>
-        </div>
       </div>
     </div>` : ''}
 

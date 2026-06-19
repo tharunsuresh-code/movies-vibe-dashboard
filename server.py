@@ -1368,6 +1368,7 @@ def get_trailer_leaderboard() -> list[dict]:
         "#tn2026 - ": "2026-05-01",
         "sattendru maarudhu vaanilai": "2026-06-12",  # Already released
         "sattendru maarudhu": "2026-06-12",
+        "gandhi talks": "2026-01-30",  # Released Jan 30 2026
     }
 
     # Compute hype for each film group
@@ -1412,8 +1413,10 @@ def get_trailer_leaderboard() -> list[dict]:
 
         # Fetch comments from top 2 trailers
         trailer_comments = []
+        comment_counts = {}
         for t in trailers[:2]:
             tc = fetch_comments_api(api_key, t["id"], 80)
+            comment_counts[t["id"]] = len(tc)
             trailer_comments.extend(tc)
 
         # Compute hype
@@ -1447,7 +1450,7 @@ def get_trailer_leaderboard() -> list[dict]:
             "release_date": wiki_release or desc_meta.get("release_date", ""),
             "wiki_url": wiki_url or "",
             "trailer_ids": [t["id"] for t in trailers],
-            "videos": [{"id": t["id"], "url": f"https://youtube.com/watch?v={t['id']}", "title": t["title"], "comment_count": 0} for t in trailers],
+            "videos": [{"id": t["id"], "url": f"https://youtube.com/watch?v={t['id']}", "title": t["title"], "comment_count": comment_counts.get(t["id"], 0)} for t in trailers],
             "analysis": sentiment_data,
         })
 
