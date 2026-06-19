@@ -204,7 +204,7 @@ initTheme();
 
 // ─── Config ─────────────────────────────────────────────────────────
 const VPS_IP = "__VITE_VPS_IP__";
-const TUNNEL_URL = "https://movies.onekural.com";
+const TUNNEL_URL = "";// https://<your-domain>
 // On HTTPS pages (Vercel), use the tunnel URL immediately (synchronous)
 // On HTTP pages (VPS direct), API_BASE stays "" for same-origin calls
 let API_BASE = window.location.protocol === 'https:' ? TUNNEL_URL : "";

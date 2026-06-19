@@ -31,9 +31,9 @@ if not API_KEY:
     import logging
     logging.warning("API_KEY not set — API routes are UNPROTECTED. Set API_KEY env var in production.")
 ALLOWED_ORIGINS = [
-    "https://movies-vibe-dashboard.vercel.app",
-    "https://movies-vibe-dashboard.vercel.app/*",
-    "https://onekural.vercel.app",
+    "https://<your-vercel-url>",
+    "https://<your-vercel-url>/*",
+    "https://<old-vercel-url>",
 ]
 
 @app.middleware("http")
@@ -1562,7 +1562,7 @@ async def api_scrape_releases():
 @app.get("/api/tunnel-url")
 async def api_tunnel_url():
     """Return the permanent Cloudflare tunnel URL."""
-    return JSONResponse(content={"url": "https://movies.onekural.com"})
+    return JSONResponse(content={"url": ""})# https://<your-domain>
 
 # ─── API Routes ───────────────────────────────────────────────────────────
 
