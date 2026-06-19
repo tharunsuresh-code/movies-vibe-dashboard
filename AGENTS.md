@@ -1,5 +1,7 @@
 # Tamil Movie Review Dashboard — AGENTS.md
 
+> **Status: SUNSET (June 2026)** — No longer actively maintained. Cron jobs removed. Codebase preserved as reference.
+
 ## Architecture Overview
 
 ### Backend (VPS)
