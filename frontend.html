@@ -291,7 +291,7 @@ function buzzClass(level) {
 
 function freqDot(f) {
   const map = {'very high':'vh','high':'hi','medium':'md','low':'lo'};
-  return map[f.toLowerCase()] || 'md';
+  return map[String(f || '').toLowerCase()] || 'md';
 }
 
 // ─── Leaderboard ─────────────────────────────────────────────────────
