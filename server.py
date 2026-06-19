@@ -1264,12 +1264,14 @@ def get_trailer_leaderboard() -> list[dict]:
         "tamil movie trailer 2026",
         "new tamil movie teaser 2026",
         "tamil film official trailer",
-        "tollywood trailer 2026 tamil",
     ]
 
     seen_trailers: dict[str, dict] = {}  # film_name -> {id, title, channel, published}
     skip_kw = ["review", "reaction", "behind the scenes", "interview", "#shorts", "box office", "collection"]
     dubbed_kw = ["tamil dubbed", "dubbed in tamil", "dubbed", "telugu to tamil", "hindi to tamil", "malayalam to tamil", " kannada to tamil"]
+    # Non-Tamil language indicators in trailer titles
+    non_tamil_title_kw = ["telugu movie", "telugu film", "hindi movie", "hindi film",
+                          "malayalam movie", "kannada movie", "tollywood", "bollywood"]
 
     for q in queries:
         if len(seen_trailers) >= 30:
@@ -1287,6 +1289,8 @@ def get_trailer_leaderboard() -> list[dict]:
                     continue
                 if any(kw in title for kw in dubbed_kw):
                     continue  # Skip dubbed versions of other language films
+                if any(kw in title for kw in non_tamil_title_kw):
+                    continue  # Skip non-Tamil language films
                 if "trailer" not in title and "teaser" not in title:
                     continue
                 # Skip old content
@@ -1418,6 +1422,17 @@ def get_trailer_leaderboard() -> list[dict]:
             tc = fetch_comments_api(api_key, t["id"], 80)
             comment_counts[t["id"]] = len(tc)
             trailer_comments.extend(tc)
+
+        # Skip non-Tamil films: detect Telugu/Hindi script in comments
+        if trailer_comments:
+            import re as _re
+            telugu_re = _re.compile(r'[\u0C00-\u0C7F]')
+            hindi_re = _re.compile(r'[\u0900-\u097F]')
+            sample = trailer_comments[:30]
+            non_tamil = sum(1 for c in sample if telugu_re.search(str(c)) or hindi_re.search(str(c)))
+            if len(sample) > 0 and non_tamil / len(sample) > 0.3:
+                logging.info(f"Skipping {film_name}: non-Tamil comments ({non_tamil}/{len(sample)})")
+                continue
 
         # Compute hype
         hype = compute_hype_score(trailer_stats, trailer_comments, llm_key, film=film_name)
