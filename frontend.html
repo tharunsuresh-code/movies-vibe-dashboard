@@ -465,9 +465,10 @@ function renderFilm(film, data) {
   const buzz = short_mood(raw_mood);
   const buzzHtml = buzz ? `<span class="buzz-badge ${buzzClass(buzz)}">${esc(buzz)}</span>` : '';
 
-  const themeHtml = (a.top_themes || []).slice(0, 5).map(t =>
-    `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`
-  ).join('');
+  const themeHtml = (a.top_themes || []).slice(0, 5).map(t => {
+    if (typeof t === 'string') return `<span class="pill">${esc(t)}</span>`;
+    return `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`;
+  }).join('');
 
   const lovedHtml = (a.what_people_loved || []).filter(l => l && l.trim()).slice(0, 5).map(l => `<li>${esc(l)}</li>`).join('');
   const critHtml = (a.what_people_criticized || []).filter(c => c && c.trim()).slice(0, 5).map(c => `<li>${esc(c)}</li>`).join('');
@@ -691,9 +692,10 @@ function renderTrailerDetail(film, data) {
     </div>`
   ).join('');
 
-  const themeHtml = (a.top_themes || []).slice(0, 5).map(t =>
-    `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`
-  ).join('');
+  const themeHtml = (a.top_themes || []).slice(0, 5).map(t => {
+    if (typeof t === 'string') return `<span class="pill">${esc(t)}</span>`;
+    return `<span class="pill"><span class="dot ${freqDot(t.frequency)}"></span>${esc(t.theme)} ${t.sentiment === 'positive' ? '😊' : t.sentiment === 'negative' ? '😠' : '🤔'}</span>`;
+  }).join('');
 
   const lovedHtml = (a.what_people_loved || []).filter(l => l && l.trim()).slice(0, 5).map(l => `<li>${esc(l)}</li>`).join('');
   const critHtml = (a.what_people_criticized || []).filter(c => c && c.trim()).slice(0, 5).map(c => `<li>${esc(c)}</li>`).join('');
