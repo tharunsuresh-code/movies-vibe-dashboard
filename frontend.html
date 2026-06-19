@@ -348,7 +348,7 @@ function renderDashboard(films, newReleases, trailers) {
               <span>💬 ${f.total_comments || 0}</span>
             </div>
           </div>
-          <div class="lb-score">${f.analysis?.rating || '—'}</div>
+          <div class="lb-score">${f.rating || '—'}</div>
         </div>
       `;
     });
