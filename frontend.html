@@ -209,7 +209,9 @@ const TUNNEL_URL = "";// https://<your-domain>
 // On HTTP pages (VPS direct), API_BASE stays "" for same-origin calls
 let API_BASE = window.location.protocol === 'https:' ? TUNNEL_URL : "";
 const API_KEY  = "__VITE_API_KEY__";
-const API_HEADERS = { "X-API-Key": API_KEY };
+// Only send the header when a key was injected; an empty key would just
+// produce a 401 from the API.
+const API_HEADERS = API_KEY ? { "X-API-Key": API_KEY } : {};
 
 // Auto-discover tunnel URL (non-blocking, updates API_BASE if found)
 (async function discoverTunnel() {
