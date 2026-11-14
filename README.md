@@ -2,6 +2,8 @@
 
 > **Status: Sunset (June 2026)** — This project is no longer actively maintained. The codebase and data remain as a reference.
 
+> **Not deployable as-is.** This is reference code, not a service. Run it locally with `DEV_MODE=1`; to expose it anywhere, put a proxy in front that adds the `X-API-Key` header, because the app deliberately no longer ships the key to the browser. There is no rate limiting — the `/api/refresh*` and `/api/films/add/*` endpoints spend YouTube quota and LLM credits on every call.
+
 A social media review dashboard that tracks Tamil movie audience sentiment by analysing YouTube comments. Films are ranked by discussion volume and sentiment, with a 3-tier spoiler system (zero / mild / full) for detail pages.
 
 ## What It Does
