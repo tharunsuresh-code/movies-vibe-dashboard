@@ -2,15 +2,13 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
-import sys
 import time
 import random
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1660,36 +1658,6 @@ async def api_add_film(film: str):
         await asyncio.to_thread(save_films, registry)
     data = await asyncio.to_thread(process_film, film, force=True)
     return JSONResponse(content={"status": "ok", "film": film})
-
-
-@app.post("/api/deploy-frontend")
-async def api_deploy_frontend():
-    """Hot-deploy frontend.html — accepts HTML body and writes to disk."""
-    import sys
-    body = await request.body()
-    path = REPO_DIR / "frontend.html"
-    path.write_bytes(body)
-    return JSONResponse(content={"status": "ok", "path": str(path)})
-
-
-@app.post("/api/restart-tunnel")
-async def api_restart_tunnel():
-    """Restart cloudflared tunnel service."""
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["sudo", "systemctl", "restart", "cloudflared-tunnel.service"],
-            capture_output=True, text=True, timeout=30
-        )
-        return JSONResponse(content={
-            "status": "ok" if result.returncode == 0 else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-        })
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "error": str(e)})
-
-
 
 
 # ─── Standalone ───────────────────────────────────────────────────────────
