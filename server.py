@@ -52,7 +52,10 @@ async def auth_middleware(request, call_next):
         if not API_KEY:
             return JSONResponse(status_code=503, content={"error": "Server misconfigured: API_KEY unset"})
         key = request.headers.get("x-api-key", "")
-        if not hmac.compare_digest(key, API_KEY):
+        # Compare bytes: header values are latin-1-decoded from raw request
+        # bytes, and compare_digest raises TypeError on non-ASCII str, which
+        # would turn a malformed header into a 500 instead of a 401.
+        if not hmac.compare_digest(key.encode("utf-8", "replace"), API_KEY.encode("utf-8")):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
     return await call_next(request)
 
