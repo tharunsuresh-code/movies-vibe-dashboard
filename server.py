@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -28,7 +29,6 @@ YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 # Loaded from env: set API_KEY on the VPS env, and VITE_API_KEY on Vercel.
 API_KEY = os.environ.get("API_KEY", "")
 if not API_KEY:
-    import logging
     logging.warning("API_KEY not set — API routes are UNPROTECTED. Set API_KEY env var in production.")
 ALLOWED_ORIGINS = [
     "https://<your-vercel-url>",
