@@ -1,4 +1,5 @@
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -14,8 +15,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Tamil Movie Review API")
 
-# Allow all CORS (Origin check happens in auth middleware below)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS: this API authenticates with a request header, not cookies, so a
+# wildcard origin is not by itself an auth bypass. Narrow it to the frontend's
+# origin via CORS_ORIGINS (comma-separated) when you have a fixed domain.
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 REPO_DIR = Path(__file__).parent
 OUTPUT_DIR = REPO_DIR / "output"
@@ -23,35 +27,33 @@ FILMS_REGISTRY = OUTPUT_DIR / "films.json"
 YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 
 # ─── Auth Config ───────────────────────────────────────────────────────────
-# API_KEY must match what the frontend sends as X-API-Key header.
-# Loaded from env: set API_KEY on the VPS env, and VITE_API_KEY on Vercel.
+# API_KEY must match what the client sends as the X-API-Key header.
+# Authenticate on the key only, never on the source address: any reverse proxy
+# or tunnel (cloudflared, nginx, Vercel) connects from 127.0.0.1, so a
+# localhost bypass silently disables auth for every proxied request.
+DEV_MODE = os.environ.get("DEV_MODE", "").lower() in ("1", "true", "yes")
 API_KEY = os.environ.get("API_KEY", "")
-if not API_KEY:
-    logging.warning("API_KEY not set — API routes are UNPROTECTED. Set API_KEY env var in production.")
-ALLOWED_ORIGINS = [
-    "https://<your-vercel-url>",
-    "https://<your-vercel-url>/*",
-    "https://<old-vercel-url>",
-]
+if not API_KEY and not DEV_MODE:
+    logging.warning(
+        "API_KEY not set — /api/ routes will return 503. Set API_KEY, or DEV_MODE=1 for local development."
+    )
+PUBLIC_PATHS = {"/api/tunnel-url"}
+
 
 @app.middleware("http")
 async def auth_middleware(request, call_next):
-    # Allow CORS preflight and health checks from localhost
-    if request.method == "OPTIONS":
-        return await call_next(request)
-    if request.client and request.client.host in ("127.0.0.1", "::1", "localhost"):
+    # CORS preflight carries no credentials and must reach the router.
+    if request.method == "OPTIONS" or DEV_MODE:
         return await call_next(request)
 
     path = request.url.path
     # Only protect /api/ routes
-    if path.startswith("/api/"):
-        # Allow tunnel URL discovery without auth (needed by Vercel frontend)
-        if path == "/api/tunnel-url":
-            return await call_next(request)
-        # Check API key header
+    if path.startswith("/api/") and path not in PUBLIC_PATHS:
+        if not API_KEY:
+            return JSONResponse(status_code=503, content={"error": "Server misconfigured: API_KEY unset"})
         key = request.headers.get("x-api-key", "")
-        if key != API_KEY:
-            return JSONResponse(status_code=403, content={"error": "Forbidden"})
+        if not hmac.compare_digest(key, API_KEY):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized"})
     return await call_next(request)
 
 # ─── Films Registry ───────────────────────────────────────────────────────
@@ -102,7 +104,7 @@ def get_youtube_key() -> str:
     key = os.environ.get("YOUTUBE_API_KEY", "")
     if key:
         return key
-    for dotenv in [REPO_DIR / ".env", Path.home() / ".hermes" / ".env"]:
+    for dotenv in [REPO_DIR / ".env"]:
         if dotenv.exists():
             with open(dotenv) as f:
                 for line in f:
@@ -115,7 +117,7 @@ def get_openrouter_key() -> str:
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if key:
         return key
-    for dotenv in [REPO_DIR / ".env", Path.home() / ".hermes" / ".env"]:
+    for dotenv in [REPO_DIR / ".env"]:
         if dotenv.exists():
             with open(dotenv) as f:
                 for line in f:
@@ -1571,7 +1573,11 @@ async def api_root():
     if frontend_path.exists():
         with open(frontend_path) as f:
             html = f.read()
-        html = html.replace("__VITE_API_KEY__", API_KEY)
+        # Never inject the API key into a page we serve: everything in this
+        # HTML is public to anyone who can load the page. Clients get the key
+        # out of band — a reverse proxy that adds the header, or DEV_MODE for
+        # local work.
+        html = html.replace("__VITE_API_KEY__", "")
         vps_ip = os.environ.get("VPS_IP", "http://localhost:8080")
         html = html.replace("__VITE_VPS_IP__", vps_ip)
         return HTMLResponse(content=html)
